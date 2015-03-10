@@ -342,7 +342,18 @@ class FastRfBagging extends RandomizableIteratedSingleClassifierEnhancer
   public double[] getFeatureImportances() {
     return m_FeatureImportances;
   }
-  
+
+  public FastRandomTree[] getFastRandomTrees() {
+    ArrayList<FastRandomTree> treesList = new ArrayList<>();
+    for(int i = 0; i < m_Classifiers.length; i++) {
+      treesList.add((FastRandomTree) m_Classifiers[i]);
+    }
+    FastRandomTree[] treesArr = new FastRandomTree[treesList.size()];
+    treesArr = treesList.toArray(treesArr);
+    return treesArr;
+  }
+
+
   /** Used when displaying feature importances. */
   //private String[] m_FeatureNames; 
   
@@ -399,10 +410,6 @@ class FastRfBagging extends RandomizableIteratedSingleClassifierEnhancer
     return "Class for bagging a classifier to reduce variance. Can do classification "
       + "and regression depending on the base learner. \n\n";
   }
-
-
-  public FastRandomTree[] getFastRandomTrees() { return (FastRandomTree[])m_Classifiers; }
-
 
     /**
    * String describing default classifier.
@@ -552,6 +559,7 @@ class FastRfBagging extends RandomizableIteratedSingleClassifierEnhancer
 
     m_BagSizePercent = newBagSizePercent;
   }
+
 
   /**
    * Returns the tip text for this property

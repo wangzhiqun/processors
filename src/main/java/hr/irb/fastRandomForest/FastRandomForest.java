@@ -658,7 +658,7 @@ public class FastRandomForest
             sb.append(trees[i].generateString(0) + "\n\n");
         }
 
-        System.err.println(sb.toString());
+        // System.err.println(sb.toString());
 
     /*if(m_bagger == null)
       sb.append("FastRandomForest not built yet");
