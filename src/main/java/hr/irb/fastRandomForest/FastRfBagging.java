@@ -401,7 +401,10 @@ class FastRfBagging extends RandomizableIteratedSingleClassifierEnhancer
   }
 
 
-  /**
+  public FastRandomTree[] getFastRandomTrees() { return (FastRandomTree[])m_Classifiers; }
+
+
+    /**
    * String describing default classifier.
    *
    * @return the default classifier classname

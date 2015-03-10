@@ -645,16 +645,22 @@ public class FastRandomForest
 
   }
 
-  /**
-   * Outputs a description of this classifier.
-   *
-   * @return a string containing a description of the classifier
-   */
-  public String toString(){
+    /**
+     * Outputs a description of this classifier.
+     *
+     * @return a string containing a description of the classifier
+     */
+    public String toString(){
 
-    StringBuilder sb = new StringBuilder();
-    
-    if(m_bagger == null)
+        StringBuilder sb = new StringBuilder();
+        FastRandomTree[] trees = m_bagger.getFastRandomTrees();
+        for(int i = 0; i < trees.length; i++) {
+            sb.append(trees[i].generateString(0) + "\n\n");
+        }
+
+        System.err.println(sb.toString());
+
+    /*if(m_bagger == null)
       sb.append("FastRandomForest not built yet");
     else {
       sb.append("FastRandomForest of " + m_numTrees
@@ -671,10 +677,10 @@ public class FastRandomForest
                   i==m_Info.classIndex() ? Double.NaN : importances[i]*100.0 ) ); //bagger.getFeatureNames()[i] );
         }
       }
+    }*/
+
+        return sb.toString();
     }
-    
-    return sb.toString();
-  }
 
   /**
    * Main method for this class.

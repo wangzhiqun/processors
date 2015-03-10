@@ -355,8 +355,30 @@ class FastRandomTree
     }
 
   }
-  
-  
+
+  private String tabBuilder(int mult) {
+      StringBuilder text = new StringBuilder();
+      text.append("");
+      for( int i = 0; i < mult; i ++) {
+          text.append("\t");
+      }
+      return text.toString();
+  }
+
+  public String generateString(int depth) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(tabBuilder(depth)
+       + m_MotherForest.m_Info.attribute(m_Attribute).name()
+       + " > "
+       + Double.toString(m_SplitPoint)
+       + "\n");
+    for (int i = 0; i < m_Successors.length; i++) {
+      sb.append(tabBuilder(depth)
+        + "=> "
+        + m_Successors[i].generateString(depth+1));
+      }
+      return sb.toString();
+  }
   
  /**
    * Recursively generates a tree. A derivative of the buildTree function from
