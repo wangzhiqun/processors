@@ -99,7 +99,7 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
     classifier = Some(rfc)
     logger.debug("Completed training.")
 
-    logger.debug(rfc.toString)
+    //logger.debug(rfc.toString)
 
     // instances are no longer needed after training
     instances.get.delete()
@@ -111,6 +111,8 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
       case _ => v.toString
     }
   }
+
+  override def toString(): String = if (classifier.isEmpty) "" else classifier.get.toString
 
   private def datasetToInstances(dataset:Dataset[L, F], indices:Array[Int]):Instances = {
     val featureLexicon = dataset.featureLexicon
