@@ -99,6 +99,8 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
     classifier = Some(rfc)
     logger.debug("Completed training.")
 
+    logger.debug(rfc.toString)
+
     // instances are no longer needed after training
     instances.get.delete()
   }
