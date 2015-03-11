@@ -365,6 +365,14 @@ class FastRandomTree
       return text.toString();
   }
 
+  // http://stackoverflow.com/questions/4094644/adding-the-elements-of-a-double-array-without-using-a-loop-in-java
+  public static double sum(double...values) {
+    double result = 0;
+    for (double value:values)
+      result += value;
+    return result;
+  }
+
   public String generateString(int depth) {
     StringBuilder sb = new StringBuilder();
     if (m_Attribute > -1) {
@@ -374,7 +382,7 @@ class FastRandomTree
       }
     } else { // leaf (no branching)
       for (int i = 0; i < m_ClassProbs.length; i++) {
-        sb.append(tabBuilder(depth) + Integer.toString(i) + " " + String.format("%.3f", m_ClassProbs[i]) + "\n");
+        sb.append("\n" + tabBuilder(depth) + Integer.toString(i) + " " + String.format("%.3f", m_ClassProbs[i]/sum(m_ClassProbs)));
       }
     }
     return sb.toString();

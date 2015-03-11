@@ -652,14 +652,11 @@ public class FastRandomForest
      */
     public String toString(){
 
-        System.err.println("Entered toString method");
         StringBuilder sb = new StringBuilder();
         FastRandomTree[] trees = m_bagger.getFastRandomTrees();
         for(int i = 0; i < trees.length; i++) {
-            System.err.print(Integer.toString(i) + " ");
             sb.append(trees[i].generateString(0) + "\n\n");
         }
-        System.err.println();
         // System.err.println(sb.toString());
 
     /*if(m_bagger == null)
