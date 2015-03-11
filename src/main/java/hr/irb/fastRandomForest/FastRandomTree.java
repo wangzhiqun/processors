@@ -359,7 +359,7 @@ class FastRandomTree
   private String tabBuilder(int mult) {
       StringBuilder text = new StringBuilder();
       text.append("");
-      for( int i = 0; i < mult; i ++) {
+      for( int i = 0; i < mult; i++) {
           text.append("\t");
       }
       return text.toString();
@@ -367,17 +367,17 @@ class FastRandomTree
 
   public String generateString(int depth) {
     StringBuilder sb = new StringBuilder();
-    sb.append(tabBuilder(depth)
-       + m_MotherForest.m_Info.attribute(m_Attribute).name()
-       + " > "
-       + Double.toString(m_SplitPoint)
-       + "\n");
-    for (int i = 0; i < m_Successors.length; i++) {
-      sb.append(tabBuilder(depth)
-        + "=> "
-        + m_Successors[i].generateString(depth+1));
+    if (m_Attribute > -1) {
+      sb.append(m_MotherForest.m_Info.attribute(m_Attribute).name() + " > " + String.format("%.2f", m_SplitPoint) + "\n");
+      for (int i = 0; i < m_Successors.length; i++) {
+        sb.append(tabBuilder(depth) + Integer.toString(i) + " => " + m_Successors[i].generateString(depth + 1) + "\n");
       }
-      return sb.toString();
+    } else { // leaf (no branching)
+      for (int i = 0; i < m_ClassProbs.length; i++) {
+        sb.append(tabBuilder(depth) + Integer.toString(i) + " " + String.format("%.3f", m_ClassProbs[i]) + "\n");
+      }
+    }
+    return sb.toString();
   }
   
  /**
