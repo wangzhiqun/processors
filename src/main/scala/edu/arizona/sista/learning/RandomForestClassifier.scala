@@ -3,6 +3,8 @@ package edu.arizona.sista.learning
 import edu.arizona.sista.struct.Counter
 import edu.arizona.sista.struct.Lexicon
 import weka.core._
+import weka.filters.Filter
+import weka.filters.unsupervised.attribute.Discretize
 import java.util
 import scala.collection.mutable
 import scala.Option
@@ -95,6 +97,12 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
     logger.debug("Max depth of decision trees: " + rfc.getMaxDepth)
     logger.debug("Total features and features used for each random split: " + attributeIndex.size + " " + rfc.getNumFeatures)
     logger.debug("Random seed: " + rfc.getSeed)
+
+    // val convert = new Discretize()
+    // convert.setInputFormat(instances.get)
+    // val newData: Instances = Filter.useFilter(instances.get, convert)
+    // logger.debug("Successfully converted to Nominal")
+    // rfc.buildClassifier(newData)
     rfc.buildClassifier(instances.get)
     classifier = Some(rfc)
     logger.debug("Completed training.")
@@ -103,6 +111,7 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
 
     // instances are no longer needed after training
     instances.get.delete()
+    // newData.delete()
   }
 
   private def asString[T](v:T):String = {
@@ -170,7 +179,7 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
       if(fa.isDefined) {
         val attValue = features.getCount(f)
         if(attValue != 0.0) {
-          featIndicesAndValues += new Tuple2(fa.get.index(), attValue)
+          featIndicesAndValues += new Tuple2(fa.get.index(), attValue.toInt)
         }
       }
     }
@@ -198,7 +207,7 @@ class RandomForestClassifier[L, F]( val numTrees:Int = 1000,
       if(attValue != 0.0) {
         val k = asString(featureLexicon.get(f))
         val attIndex = attributeIndex.get(k).get.index()
-        featIndicesAndValues += new Tuple2(attIndex, attValue)
+        featIndicesAndValues += new Tuple2(attIndex, attValue.toInt)
       }
     }
 
