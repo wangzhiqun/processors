@@ -1,33 +1,58 @@
 package edu.arizona.sista.struct
 
-case class Interval(start: Int, end: Int) {
-  require(start < end, "invalid range")
+/**
+ *  An interval of integers.
+ *
+ *  @constructor create a new interval
+ *  @param start the first element of the interval
+ *  @param end the last element of the interval (exclusive)
+ */
+class Interval protected (val start: Int, val end: Int) extends IndexedSeq[Int] with Ordered[Interval] {
+  require(start < end || (start == 0 && end == 0), "invalid range")
 
-  def size: Int = end - start
+  import Interval.empty
 
-  def toSeq: Seq[Int] = start until end
+  override def toString: String = s"Interval($start, $end)"
+
+  def length: Int = end - start
 
   def contains(i: Int): Boolean = i >= start && i < end
 
-  def intersects(that: Interval): Boolean =
-    !(this.allenPrecedes(that) || this.allenMeets(that) || this.allenMetBy(that) || this.allenPrecededBy(that))
+  def apply(index: Int): Int = {
+    require(index >= 0 && index < length, "invalid index")
+    start + index
+  }
 
-  // allen relations
-  def allenPrecedes(that: Interval): Boolean = this.end < that.start
-  def allenMeets(that: Interval): Boolean = this.end == that.start
-  def allenOverlaps(that: Interval): Boolean = this.start < that.start && this.end > that.start && this.end < that.end
-  def allenFinishes(that: Interval): Boolean = this.start > that.start && this.end == that.end
-  def allenContains(that: Interval): Boolean = this.start < that.start && this.end > that.end
-  def allenStarts(that: Interval): Boolean = this.start == that.start && this.end < that.end
-  def allenEquals(that: Interval): Boolean = this.start == that.start && this.end == that.end
-  def allenStartedBy(that: Interval): Boolean = that allenStarts this
-  def allenContainedBy(that: Interval): Boolean = that allenContains this
-  def allenFinishedBy(that: Interval): Boolean = that allenFinishes this
-  def allenOverlappedBy(that: Interval): Boolean = that allenOverlaps this
-  def allenMetBy(that: Interval): Boolean = that allenMeets this
-  def allenPrecededBy(that: Interval): Boolean = that allenPrecedes this
+  def compare(that: Interval): Int =
+    if (this.start > that.start) 1
+    else if (this.start < that.start) -1
+    else this.size - that.size
+
+  /** returns true if the given interval is contained by this interval */
+  def contains(that: Interval): Boolean =
+    this.start <= that.start && this.end >= that.end
+
+  /** returns true if there is any overlap between the members of the intervals */
+  def overlaps(that: Interval): Boolean =
+    if (this == empty) false
+    else if (that == empty) false
+    else if (this.start < that.start) {
+      this.end > that.start
+    } else if (this.start > that.start) {
+      this.start < that.end
+    } else true
+}
+
+private[struct] object Empty extends Interval(0, 0) {
+  override def toString: String = "Empty"
 }
 
 object Interval {
-  def apply(idx: Int): Interval = Interval(idx, idx + 1)
+  /** the empty interval */
+  val empty: Interval = Empty
+  /** make an interval with a single element */
+  def apply(i: Int): Interval = new Interval(i, i + 1)
+  /** make an interval */
+  def apply(start: Int, end: Int): Interval =
+    if (start == end) empty else new Interval(start, end)
 }

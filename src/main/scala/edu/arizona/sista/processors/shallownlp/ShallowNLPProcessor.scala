@@ -2,8 +2,10 @@ package edu.arizona.sista.processors.shallownlp
 
 import java.util
 import java.util.Properties
+import java.util.zip.GZIPInputStream
 
 import edu.arizona.sista.processors.corenlp.CoreNLPDocument
+import edu.arizona.sista.processors.corenlp.chunker.CRFChunker
 import edu.arizona.sista.processors._
 import edu.stanford.nlp.ling.CoreAnnotations._
 import edu.stanford.nlp.ling.{CoreAnnotations, CoreLabel}
@@ -26,6 +28,7 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
   lazy val posTagger = mkPosTagger
   lazy val lemmatizer = mkLemmatizer
   lazy val ner = mkNer
+  lazy val chunker = mkChunker
 
   def mkTokenizerWithoutSentenceSplitting: StanfordCoreNLP = {
     val props = new Properties()
@@ -59,6 +62,13 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
     new StanfordCoreNLP(props, false)
   }
 
+  def mkChunker: CRFChunker = {
+    val path = "edu/arizona/sista/processors/corenlp/chunker/chunker.crf.gz"
+    val is = getClass.getClassLoader.getResourceAsStream(path)
+    val gzis = new GZIPInputStream(is)
+    CRFChunker.load(gzis)
+  }
+
   /**
    * Hook to allow postprocessing of CoreNLP tokenization
    * This is useful for domain-specific corrections, such as the ones in BioNLPProcessor
@@ -86,26 +96,8 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
     tokensAsJava
   }
 
-  /**
-   * Hook to allow the preprocessing of input text to CoreNLP
-   * This is useful for domain-specific corrections, such as the ones in BioNLPProcessor, where we remove Table and Fig references
-   * @param origText The original input text
-   * @return The preprocessed text
-   */
-  def preprocessText(origText:String):String = {
-    origText
-  }
 
-  private def preprocessSentences(origSentences:Iterable[String]):Iterable[String] = {
-    val sents = new ListBuffer[String]()
-    for(os <- origSentences)
-      sents += preprocessText(os)
-    sents.toList
-  }
-
-  def mkDocument(origText:String): Document = {
-    val text = preprocessText(origText)
-
+  def mkDocument(text:String, keepText:Boolean): Document = {
     val annotation = new Annotation(text)
     tokenizerWithSentenceSplitting.annotate(annotation)
     val sas = annotation.get(classOf[SentencesAnnotation])
@@ -125,7 +117,10 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
       sa.set(classOf[TokenEndAnnotation], new Integer(tokenOffset))
     }
 
-    new CoreNLPDocument(sentences, Some(annotation))
+    val doc = new CoreNLPDocument(sentences, Some(annotation))
+    if(keepText) doc.text = Some(text)
+
+    doc
   }
 
   def mkSentence(annotation:CoreMap): Sentence = {
@@ -157,10 +152,11 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
     else None
   }
 
-  def mkDocumentFromSentences(origSentences:Iterable[String],
+  def mkDocumentFromSentences(sentences:Iterable[String],
+                              keepText:Boolean,
                               charactersBetweenSentences:Int = 1): Document = {
-    val sentences = preprocessSentences(origSentences)
-    val docAnnotation = new Annotation(sentences.mkString(mkSep(charactersBetweenSentences)))
+    val origText = sentences.mkString(mkSep(charactersBetweenSentences))
+    val docAnnotation = new Annotation(origText)
     val sentencesAnnotation = new util.ArrayList[CoreMap]()
     docAnnotation.set(classOf[SentencesAnnotation], sentencesAnnotation.asInstanceOf[java.util.List[CoreMap]])
     val docSents = new Array[Sentence](sentences.size)
@@ -197,7 +193,10 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
       sentOffset += 1
     }
 
-    new CoreNLPDocument(docSents, Some(docAnnotation))
+    val doc = new CoreNLPDocument(docSents, Some(docAnnotation))
+    if(keepText) doc.text = Some(origText)
+
+    doc
   }
 
   private def mkSep(size:Int):String = {
@@ -207,13 +206,15 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
   }
 
   def mkDocumentFromTokens(sentences:Iterable[Iterable[String]],
+                           keepText:Boolean,
                            charactersBetweenSentences:Int = 1,
                            charactersBetweenTokens:Int = 1): Document = {
     val sb = new ListBuffer[String]
     for (s <- sentences)
       sb += s.mkString(mkSep(charactersBetweenTokens))
     val sentenceTexts = sb.toArray
-    val docAnnotation = new Annotation(sentenceTexts.mkString(mkSep(charactersBetweenSentences)))
+    val origText = sentenceTexts.mkString(mkSep(charactersBetweenSentences))
+    val docAnnotation = new Annotation(origText)
     val sentencesAnnotation = new util.ArrayList[CoreMap]()
     docAnnotation.set(classOf[SentencesAnnotation], sentencesAnnotation.asInstanceOf[java.util.List[CoreMap]])
     val docSents = new Array[Sentence](sentences.size)
@@ -227,9 +228,12 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
       for (w <- sentence) {
         val crtTok = new CoreLabel()
         crtTok.setWord(w)
+        crtTok.setValue(w)
         crtTok.setBeginPosition(charOffset)
         charOffset += w.length
         crtTok.setEndPosition(charOffset)
+        crtTok.setIndex(tokOffset + 1) // Stanford counts tokens starting from 1
+        crtTok.setSentIndex(sentOffset) // Stanford counts sentences starting from 0...
         crtTokens.add(crtTok)
         tokOffset += 1
         charOffset += charactersBetweenTokens
@@ -246,13 +250,16 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
       sentOffset += 1
     }
 
-    new CoreNLPDocument(docSents, Some(docAnnotation))
+    val doc = new CoreNLPDocument(docSents, Some(docAnnotation))
+    if(keepText) doc.text = Some(origText)
+
+    doc
   }
 
   def basicSanityCheck(doc:Document, checkAnnotation:Boolean = true): Option[Annotation] = {
     if (doc.sentences == null)
       throw new RuntimeException("ERROR: Document.sentences == null!")
-    if (doc.sentences.size == 0) return None
+    if (doc.sentences.length == 0) return None
     if (doc.sentences(0).words == null)
       throw new RuntimeException("ERROR: Sentence.words == null!")
 
@@ -270,9 +277,7 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
    * This is useful for domain-specific corrections
    * @param annotation The CoreNLP annotation
    */
-  def postprocessTags(annotation:Annotation) {
-
-  }
+  def postprocessTags(annotation:Annotation) { }
 
   def tagPartsOfSpeech(doc:Document) {
     val annotation = basicSanityCheck(doc)
@@ -334,11 +339,10 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
     try {
       ner.annotate(annotation.get)
     } catch {
-      case e:Exception => {
+      case e:Exception =>
         println("Caught NER exception!")
         println("Document:\n" + doc)
         throw e
-      }
     }
 
     // convert CoreNLP Annotations to our data structures
@@ -365,7 +369,12 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
   }
 
   def chunking(doc:Document) {
-    // TODO: add shallow parsing here!
+    for (s <- doc.sentences) {
+      val words = s.words
+      val tags = s.tags.get
+      val chunks = chunker.classify(words, tags)
+      s.chunks = Some(chunks)
+    }
   }
 
   def labelSemanticRoles(doc:Document) {
@@ -380,5 +389,3 @@ class ShallowNLPProcessor(val internStrings:Boolean = true) extends Processor {
     // nothing here
   }
 }
-
-

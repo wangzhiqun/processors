@@ -7,12 +7,15 @@ import scala.collection.mutable.{ListBuffer, ArrayBuffer}
  * A generic graph where the nodes have Int identifiers and edges have type E
  * The node ids are offsets in an array thus they must start at 0
  * This class is designed to be as immutable as possible, thus no operations to modify it are provided
+ * Each edge in edges stores (head, modifier, label)
  * User: mihais
  * Date: 3/5/13
  */
 class DirectedGraph[E](edges:List[(Int, Int, E)], val roots:collection.immutable.Set[Int]) extends Serializable {
   val outgoingEdges:Array[Array[(Int, E)]] = mkOutgoing(edges)
   val incomingEdges:Array[Array[(Int, E)]] = mkIncoming(edges)
+
+  def allEdges(): List[(Int, Int, E)] = edges
 
   private def computeSize(edges:List[(Int, Int, E)]):Int = {
     var size = 0
@@ -129,6 +132,18 @@ class DirectedGraph[E](edges:List[(Int, Int, E)], val roots:collection.immutable
     case _ => false
   }
 
+  // Gets a single path represented as a sequence in which each element
+  // is a sequence of edges connecting two tokens, and returns a sequence in which
+  // each element is a sequence of edges forming a path.
+  // In other words, it returns all possible paths given the edges connecting the nodes of interest.
+  def mkEdgePaths(edges: Seq[Seq[(Int, Int, E)]]): Seq[Seq[(Int, Int, E)]] = edges match {
+    case Nil => Seq(Nil)
+    case Seq(first, rest @ _*) => for {
+      i <- first
+      j <- mkEdgePaths(rest)
+    } yield i +: j
+  }
+
   // returns the shortest path between two nodes as a sequence of nodes
   // each pair of nodes is guaranteed to have at least one edge, maybe several
   def shortestPath(start: Int, end: Int, ignoreDirection: Boolean = false): Seq[Int] = {
@@ -139,17 +154,17 @@ class DirectedGraph[E](edges:List[(Int, Int, E)], val roots:collection.immutable
 
     // build table of pointers to previous node in shortest path to the source
     @annotation.tailrec
-    def mkPrev(rest: Set[Int], dist: Map[Int, Double], prev: Map[Int, Int]): Map[Int, Int] =
-      if (rest.isEmpty) prev
+    def mkPrev(nodes: Set[Int], dist: Map[Int, Double], prev: Map[Int, Int]): Map[Int, Int] =
+      if (nodes.isEmpty) prev
       else {
-        val u = rest minBy dist
+        val u = nodes minBy dist
         val d = dist(u) + 1  // all edges have a cost of 1
         val newDistPrev = for {
           v <- neighbors(u)
-          if rest.contains(v) && d < dist(v)
+          if nodes.contains(v) && d < dist(v)
         } yield (v -> d, v -> u)
         val (newDist, newPrev) = newDistPrev.unzip
-        mkPrev(rest - u, dist ++ newDist, prev ++ newPrev)
+        mkPrev(nodes - u, dist ++ newDist, prev ++ newPrev)
       }
 
     // build path from source to node
@@ -162,6 +177,24 @@ class DirectedGraph[E](edges:List[(Int, Int, E)], val roots:collection.immutable
     val prev = Map(start -> -1)  // start has no previous node
     mkPath(end, mkPrev(nodes, dist, prev), Nil)
   }
+
+  // the edge tuple is (head:Int, dependent:Int, label:E, direction:String)
+  def shortestPathEdges(start: Int, end: Int, ignoreDirection: Boolean = false): Seq[Seq[(Int, Int, E, String)]] = {
+    // get sequence of nodes in the shortest path
+    val nodesPath = shortestPath(start, end, ignoreDirection)
+    // make pairs of nodes in the shortest path
+    val pairs = nodesPath.sliding(2).toList
+    // get edges for each pair
+    val edges = for (Seq(n1, n2) <- pairs) yield getEdges(n1, n2, ignoreDirection)
+    // return sequence of paths, where each path is a sequence of edges
+    for (edgePath <- mkEdgePaths(edges)) yield {
+      for ((Seq(n1, n2), edge) <- pairs zip edgePath) yield edge match {
+        case (`n1`, `n2`, dep) => (n1, n2, dep, ">")
+        case (`n2`, `n1`, dep) => (n2, n1, dep, "<")
+      }
+    }
+  }
+
 }
 
 class DirectedGraphEdgeIterator[E](val graph:DirectedGraph[E]) extends Iterator[(Int, Int, E)] {

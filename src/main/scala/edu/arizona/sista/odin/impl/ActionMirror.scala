@@ -1,26 +1,35 @@
 package edu.arizona.sista.odin.impl
 
-import scala.reflect.ClassTag
+import java.util.{ List => JList }
+import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe._
-import edu.arizona.sista.struct.Interval
-import edu.arizona.sista.processors.Document
 import edu.arizona.sista.odin._
 
-class ActionMirror[T <: Actions : ClassTag](obj: T) {
-  private val instanceMirror = runtimeMirror(obj.getClass.getClassLoader).reflect(obj)
+class ActionMirror(actions: Actions) {
 
-  def reflect(name: String): ReflectedAction = ActionMirror.Lock.synchronized {
+  private val instanceMirror = runtimeMirror(actions.getClass.getClassLoader).reflect(actions)
+
+  def reflect(name: String): Action = {
     val methodSymbol = instanceMirror.symbol.typeSignature.member(TermName(name)).asMethod
     val methodMirror = instanceMirror.reflectMethod(methodSymbol)
-    new ReflectedAction(name, methodMirror)
+    // handle action based on its return type
+    val returnType = methodSymbol.returnType
+    if (returnType =:= typeOf[Action]) {
+      // val action: Action
+      methodMirror().asInstanceOf[Action]
+    } else if (returnType =:= typeOf[Seq[Mention]]) {
+      // def action(mentions: Seq[Mention], state: State): Seq[Mention]
+      (ms: Seq[Mention], st: State) => {
+        methodMirror(ms, st).asInstanceOf[Seq[Mention]]
+      }
+    } else if (returnType =:= typeOf[JList[Mention]]) {
+      // java.util.List<Mention> action(java.util.List<Mention> mentions, State state)
+      (ms: Seq[Mention], st: State) => {
+        methodMirror(ms.asJava, st).asInstanceOf[JList[Mention]].asScala
+      }
+    } else {
+      sys.error(s"invalid action '$name'")
+    }
   }
-}
 
-object ActionMirror {
-  private object Lock  // scala reflection isn't thread-safe :(
-}
-
-class ReflectedAction(val name: String, methodMirror: MethodMirror) {
-  def apply(label: String, mention: Map[String, Seq[Interval]], sent: Int, doc: Document, ruleName: String, state: State, keep: Boolean): Seq[Mention] =
-    methodMirror(label, mention, sent, doc, ruleName, state, keep).asInstanceOf[Seq[Mention]]
 }

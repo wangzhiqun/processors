@@ -2,6 +2,7 @@ package edu.arizona.sista.processors
 
 import edu.arizona.sista.discourse.rstparser.DiscourseTree
 import edu.arizona.sista.struct.{Tree, DirectedGraph}
+import DependencyMap._
 
 import collection.mutable
 import collection.mutable.ListBuffer
@@ -12,13 +13,18 @@ import java.lang.StringBuilder
  * User: mihais
  * Date: 3/1/13
  */
-class Document(
+class Document( var id:Option[String],
                 val sentences:Array[Sentence],
                 var coreferenceChains:Option[CorefChains],
-                var discourseTree:Option[DiscourseTree]) extends Serializable {
+                var discourseTree:Option[DiscourseTree],
+                var text:Option[String]) extends Serializable {
+
+  def this(sa:Array[Sentence], cc:Option[CorefChains], dt:Option[DiscourseTree]) {
+    this(None, sa, cc, dt, None)
+  }
 
   def this(sa: Array[Sentence]) {
-    this(sa, None, None)
+    this(None, sa, None, None, None)
   }
 
   /** Clears any internal state potentially constructed by the annotators */
@@ -45,28 +51,74 @@ class Sentence(
                 var chunks:Option[Array[String]],
                 /** Constituent tree of this sentence; includes head words */
                 var syntacticTree:Option[Tree],
-                /** DAG of syntactic dependencies; word offsets start at 0 */
-                var dependencies:Option[DirectedGraph[String]]) extends Serializable {
+                /** DAG of syntactic and semantic dependencies; word offsets start at 0 */
+                var dependenciesByType:DependencyMap) extends Serializable {
 
   def this(
             words:Array[String],
             startOffsets:Array[Int],
             endOffsets:Array[Int]) =
     this(words, startOffsets, endOffsets,
-      None, None, None, None, None, None, None)
+      None, None, None, None, None, None, new DependencyMap)
 
   def size:Int = words.length
+
+  /**
+   * Default dependencies: first Stanford collapsed, then Stanford basic, then None
+   * @return A directed graph of dependencies if any exist, otherwise None
+   */
+  def dependencies:Option[DirectedGraph[String]] = {
+    if(dependenciesByType == null) return None
+
+    if(dependenciesByType.contains(STANFORD_COLLAPSED))
+      dependenciesByType.get(STANFORD_COLLAPSED)
+    else if(dependenciesByType.contains(STANFORD_BASIC))
+      dependenciesByType.get(STANFORD_BASIC)
+    else
+      None
+  }
+
+  /** Fetches the Stanford basic dependencies */
+  def stanfordBasicDependencies:Option[DirectedGraph[String]] = {
+    if(dependenciesByType == null) return None
+    dependenciesByType.get(STANFORD_BASIC)
+  }
+
+  /** Fetches the Stanford collapsed dependencies */
+  def stanfordCollapsedDependencies:Option[DirectedGraph[String]] = {
+    if(dependenciesByType == null) return None
+    dependenciesByType.get(STANFORD_COLLAPSED)
+  }
+
+  def semanticRoles:Option[DirectedGraph[String]] = {
+    if(dependenciesByType == null) return None
+    dependenciesByType.get(SEMANTIC_ROLES)
+  }
+
+  def setDependencies(depType:Int, deps:DirectedGraph[String]): Unit = {
+    if(dependenciesByType == null)
+      dependenciesByType = new DependencyMap
+    dependenciesByType += (depType -> deps)
+  }
 
   /**
    * Recreates the text of the sentence, preserving the original number of white spaces between tokens
    * @return the text of the sentence
    */
-  def getSentenceText():String = {
+  def getSentenceText():String =  getSentenceFragmentText(0, words.length)
+
+  def getSentenceFragmentText(start:Int, end:Int):String = {
+    // optimize the single token case
+    if(end - start == 1) words(start)
+
     val text = new mutable.StringBuilder()
-    for(i <- 0 until words.size) {
-      if(i > 0) {
+    for(i <- start until end) {
+      if(i > start) {
         // add as many white spaces as recorded between tokens
-        for (j <- 0 until (startOffsets(i) - endOffsets(i - 1))) {
+        // sometimes this space is negative: in BioNLPProcessor we replace "/" with "and"
+        //   in these cases, let's make sure we print 1 space, otherwise the text is hard to read
+        val numberOfSpaces = math.max(1, startOffsets(i) - endOffsets(i - 1))
+        for (j <- 0 until numberOfSpaces) {
           text.append(" ")
         }
       }
@@ -75,6 +127,16 @@ class Sentence(
     text.toString()
   }
 
+}
+
+class DependencyMap extends mutable.HashMap[Int, DirectedGraph[String]] {
+  override def initialSize:Int = 2 // we have very few dependency types, so let's create a small hash to save memory
+}
+
+object DependencyMap {
+  val STANFORD_BASIC = 0 // basic Stanford dependencies
+  val STANFORD_COLLAPSED = 1 // collapsed Stanford dependencies
+  val SEMANTIC_ROLES = 2 // semantic roles from CoNLL 2008-09, which includes PropBank and NomBank
 }
 
 /** Stores a single coreference mention */
@@ -90,14 +152,15 @@ class CorefMention (
                      /** Id of the coreference chain containing this mention; -1 if singleton mention */
                      val chainId:Int) extends Serializable {
 
-  def length = (endOffset - startOffset)
+  def length = endOffset - startOffset
 
   override def equals(other:Any):Boolean = {
     other match {
-      case that:CorefMention => (sentenceIndex == that.sentenceIndex &&
+      case that:CorefMention =>
+        sentenceIndex == that.sentenceIndex &&
         headIndex == that.headIndex &&
         startOffset == that.startOffset &&
-        endOffset == that.endOffset)
+        endOffset == that.endOffset
       case _ => false
     }
   }
@@ -162,7 +225,7 @@ class CorefChains (rawMentions:Iterable[CorefMention]) extends Serializable {
   /** All mentions in this document */
   def getMentions:Iterable[CorefMention] = mentions.values
 
-  def isEmpty = (mentions.size == 0 && chains.size == 0)
+  def isEmpty = mentions.isEmpty && chains.isEmpty
 }
 
 object CorefChains {
@@ -207,11 +270,11 @@ object CorefChains {
     val chainBuffer = new mutable.HashMap[Int, ListBuffer[CorefMention]]
     for (m <- mentions.values) {
       var cb = chainBuffer.get(m.chainId)
-      if (cb == None) {
+      if (cb.isEmpty) {
         val cbv = new ListBuffer[CorefMention]
         chainBuffer += m.chainId -> cbv
         cb = chainBuffer.get(m.chainId)
-        assert(cb != None)
+        assert(cb.isDefined)
       }
       cb.get += m
     }
