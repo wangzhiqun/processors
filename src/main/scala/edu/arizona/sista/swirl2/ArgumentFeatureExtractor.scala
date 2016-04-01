@@ -46,20 +46,34 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
     val paths = deps.shortestPathEdges(pred, arg, ignoreDirection = true)
     paths.foreach(path => {
       // path including POS tags
-      val pst = pathToString(path, sent, useTags = true)
+      val pst = pathToString(path, sent, useTags = true, useLemmas = false)
+
+      //println(s"""Sentence: ${sent.words.mkString(" ")}""")
+      //println(s"Dependencies:\n$deps")
+      //println(s"Path between $pred and $arg: $pst")
+
       features.incrementCount(s"path$prefix:$before:$predTag-$pst-$argTag")
+      features.incrementCount(s"path$prefix:$before:$predLemma-$pst-$argLemma")
 
       // path including lemmas along the way
-      val psl = pathToString(path, sent, useTags = false)
+      val psl = pathToString(path, sent, useTags = false, useLemmas = true)
+      features.incrementCount(s"path$prefix:$before:$predTag-$psl-$argTag")
       features.incrementCount(s"path$prefix:$before:$predLemma-$psl-$argLemma")
+
+      // no tags, no lemmas
+      val ps = pathToString(path, sent, useTags = false, useLemmas = false)
+      features.incrementCount(s"path$prefix:$before:$predTag-$ps-$argTag")
+      features.incrementCount(s"path$prefix:$before:$predLemma-$ps-$argLemma")
     })
   }
 
-  def pathToString(path:Seq[(Int, Int, String, String)], sent:Sentence, useTags:Boolean = true):String = {
+  def pathToString(path:Seq[(Int, Int, String, String)], sent:Sentence, useTags:Boolean, useLemmas:Boolean):String = {
     if(useTags)
       path.map(d => s"${d._3}${d._4}${tagAt(sent, endPoint(d), MAX_TAG_SIZE)}").mkString("-")
-    else
+    else if(useLemmas)
       path.map(d => s"${d._3}${d._4}${lemmaAt(sent, endPoint(d))}").mkString("-")
+    else
+      path.map(d => s"${d._3}${d._4}").mkString("-")
   }
 
   def endPoint(dep:(Int, Int, String, String)):Int = {
