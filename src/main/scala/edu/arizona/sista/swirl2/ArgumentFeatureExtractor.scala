@@ -126,6 +126,32 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       features.incrementCount(s"tag:$i:$tag:$predTag:$before")
     }
 
+    val argTag = tagAt(sent, position)
+    if((argTag == "IN" || argTag == "TO") && sent.stanfordBasicDependencies.isDefined) {
+      val deps = sent.stanfordBasicDependencies.get
+      val outgoing = deps.getOutgoingEdges(position)
+
+      for(p <- outgoing) {
+        val pPos = p._1
+        val pDep = p._2
+
+        val pLemma = lemmaAt(sent, pPos)
+        val pTag = tagAt(sent, pPos)
+
+        // TODO: add pDep
+
+        features.incrementCount(s"plemma:$pLemma")
+        features.incrementCount(s"plemma:$pLemma:$before")
+        features.incrementCount(s"plemma:$pLemma:$predLemma")
+        features.incrementCount(s"plemma:$pLemma:$predLemma:$before")
+
+        features.incrementCount(s"ptag:$pTag")
+        features.incrementCount(s"ptag:$pTag:$before")
+        features.incrementCount(s"ptag:$pTag:$predTag")
+        features.incrementCount(s"ptag:$pTag:$predTag:$before")
+      }
+    }
+
     //
     // history features
     // history stores the positive predictions seen to the left of this candidate
