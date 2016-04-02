@@ -118,7 +118,6 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       features.incrementCount(s"lemma:$i:$tag:$predLemma")
       features.incrementCount(s"lemma:$i:$tag:$predLemma:$before")
 
-
       // of POS tags
       features.incrementCount(s"tag:$i:$tag")
       features.incrementCount(s"tag:$i:$tag:$before")
@@ -131,6 +130,10 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       val deps = sent.stanfordBasicDependencies.get
       val outgoing = deps.getOutgoingEdges(position)
 
+      //println(s"Found PREP at $position")
+      //println(s"""Words: ${sent.words.mkString(" ")}""")
+      //println(s"Deps:\n$deps")
+
       for(p <- outgoing) {
         val pPos = p._1
         val pDep = p._2
@@ -140,15 +143,23 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
 
         // TODO: add pDep
 
+        // lemmas
         features.incrementCount(s"plemma:$pLemma")
         features.incrementCount(s"plemma:$pLemma:$before")
         features.incrementCount(s"plemma:$pLemma:$predLemma")
         features.incrementCount(s"plemma:$pLemma:$predLemma:$before")
 
+        // tags
         features.incrementCount(s"ptag:$pTag")
         features.incrementCount(s"ptag:$pTag:$before")
         features.incrementCount(s"ptag:$pTag:$predTag")
         features.incrementCount(s"ptag:$pTag:$predTag:$before")
+
+        // hybrid
+        features.incrementCount(s"pLemma:$pLemma:$predTag")
+        features.incrementCount(s"pLemma:$pLemma:$predTag:$before")
+        features.incrementCount(s"pLemma:$pTag:$predLemma")
+        features.incrementCount(s"pLemma:$pTag:$predLemma:$before")
       }
     }
 
