@@ -345,6 +345,7 @@ class ArgumentClassifier {
     var sentCount = 0
     var droppedCands = 0
     var done = false
+    //val pathStats = new Counter[String]()
     for(s <- doc.sentences if ! done) {
       val outEdges = s.semanticRoles.get.outgoingEdges
       for(pred <- s.words.indices if isPred(pred, s)) {
@@ -356,6 +357,7 @@ class ArgumentClassifier {
             if (label.isDefined && labelStats.getCount(label.get) > 0) { // TODO: LABEL_THRESHOLD) {
               dataset += mkDatum(s, arg, pred, history, POS_LABEL) // TODO: label.get)
               history += new Tuple2(arg, label.get)
+              //addPath(s, arg, pred, pathStats)
             } else {
               // down sample negatives
               if (random.nextDouble() < DOWNSAMPLE_PROB) {
@@ -376,7 +378,20 @@ class ArgumentClassifier {
         done = true
     }
     logger.debug(s"Dropped $droppedCands candidate arguments.")
+
+    //println(s"Path stats: $pathStats")
+    //System.exit(1)
+
     dataset
+  }
+
+  def addPath(s:Sentence, arg:Int, pred:Int, pathStats:Counter[String]): Unit = {
+    val deps = s.stanfordCollapsedDependencies.get
+    val paths = deps.shortestPathEdges(pred, arg, ignoreDirection = true)
+    for(path <- paths) {
+      val ps = path.map(d => s"${d._4}").mkString("")
+      pathStats.incrementCount(ps)
+    }
   }
 
   def findArgLabel(arg:Int, args:Array[(Int, String)]):Option[String] = {

@@ -6,6 +6,9 @@ import edu.arizona.sista.struct.{Counter, DirectedGraph}
 
 import ArgumentFeatureExtractor._
 
+import scala.StringBuilder
+import scala.collection.immutable.HashSet
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -65,6 +68,26 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       features.incrementCount(s"path$prefix:$before:$predTag-$ps-$argTag")
       features.incrementCount(s"path$prefix:$before:$predLemma-$ps-$argLemma")
     })
+
+    val dirs = pathsDirection(paths)
+    if(dirs.contains(">")) {
+      val outgoing = deps.outgoingEdges(pred).sortBy(_._1)
+      val b = new StringBuilder()
+      var first = true
+      var foundArg = false
+      for(o <- outgoing) {
+        if(! first) b.append("-")
+        b.append(o._2)
+        if(o._1 == arg) {
+          foundArg = true
+          b.append("(A)")
+        }
+        first = false
+      }
+      assert(foundArg == true)
+      println(b.toString())
+      features.incrementCount(b.toString())
+    }
   }
 
   def pathToString(path:Seq[(Int, Int, String, String)], sent:Sentence, useTags:Boolean, useLemmas:Boolean):String = {
@@ -74,6 +97,13 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       path.map(d => s"${d._3}${d._4}${lemmaAt(sent, endPoint(d))}").mkString("-")
     else
       path.map(d => s"${d._3}${d._4}").mkString("-")
+  }
+
+  def pathsDirection(paths:Seq[Seq[(Int, Int, String, String)]]):Set[String] = {
+    val dirs = new mutable.HashSet[String]
+    for(path <- paths)
+      dirs += path.map(d => s"${d._4}").mkString("")
+    dirs.toSet
   }
 
   def endPoint(dep:(Int, Int, String, String)):Int = {
