@@ -85,7 +85,7 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
         first = false
       }
       assert(foundArg == true)
-      println(b.toString())
+      //println(b.toString())
       features.incrementCount(b.toString())
     }
   }
