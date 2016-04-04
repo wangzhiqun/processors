@@ -73,6 +73,7 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
     if(dirs.contains(">")) {
       val outgoing = deps.outgoingEdges(pred).sortBy(_._1)
       val b = new StringBuilder()
+      b.append("predchildren:")
       var first = true
       var foundArg = false
       for(o <- outgoing) {
@@ -87,6 +88,36 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       assert(foundArg == true)
       //println(b.toString())
       features.incrementCount(b.toString())
+    }
+
+    for(path <- paths) {
+      val dir = path.map(d => s"${d._4}").mkString("")
+      if(dir == "<>") {
+        val parent = path.head._1
+        val outgoing = deps.outgoingEdges(parent).sortBy(_._1)
+        val b = new StringBuilder()
+        b.append("parentchildren:")
+        var first = true
+        var foundArg = false
+        var foundPred = false
+        for(o <- outgoing) {
+          if(! first) b.append("-")
+          b.append(o._2)
+          if(o._1 == arg) {
+            foundArg = true
+            b.append("(A)")
+          }
+          if(o._1 == pred) {
+            foundPred = true
+            b.append("(P)")
+          }
+          first = false
+        }
+        assert(foundArg == true)
+        assert(foundPred == true)
+        //println(b.toString())
+        features.incrementCount(b.toString())
+      }
     }
   }
 
