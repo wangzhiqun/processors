@@ -57,16 +57,23 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
 
       features.incrementCount(s"path$prefix:$before:$predTag-$pst-$argTag")
       features.incrementCount(s"path$prefix:$before:$predLemma-$pst-$argLemma")
+      features.incrementCount(s"path$prefix:$predTag-$pst-$argTag")
+      features.incrementCount(s"path$prefix:$predLemma-$pst-$argLemma")
+
 
       // path including lemmas along the way
       val psl = pathToString(path, sent, useTags = false, useLemmas = true)
       features.incrementCount(s"path$prefix:$before:$predTag-$psl-$argTag")
       features.incrementCount(s"path$prefix:$before:$predLemma-$psl-$argLemma")
+      features.incrementCount(s"path$prefix:$predTag-$psl-$argTag")
+      features.incrementCount(s"path$prefix:$predLemma-$psl-$argLemma")
 
       // no tags, no lemmas
       val ps = pathToString(path, sent, useTags = false, useLemmas = false)
       features.incrementCount(s"path$prefix:$before:$predTag-$ps-$argTag")
       features.incrementCount(s"path$prefix:$before:$predLemma-$ps-$argLemma")
+      features.incrementCount(s"path$prefix:$predTag-$ps-$argTag")
+      features.incrementCount(s"path$prefix:$predLemma-$ps-$argLemma")
     })
 
     val dirs = pathsDirection(paths)
@@ -168,22 +175,22 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       val tag = tagAt(sent, position + i)
 
       // of lemmas
-      features.incrementCount(s"lemma:$i:$lemma")
-      features.incrementCount(s"lemma:$i:$lemma:$before")
-      features.incrementCount(s"lemma:$i:$lemma:$predLemma")
-      features.incrementCount(s"lemma:$i:$lemma:$predLemma:$before")
+      features.incrementCount(s"lemma$i:$lemma")
+      features.incrementCount(s"lemma$i:$lemma:$before")
+      features.incrementCount(s"lemma$i:$lemma:$predLemma")
+      features.incrementCount(s"lemma$i:$lemma:$predLemma:$before")
 
       // hybrid
-      features.incrementCount(s"lemma:$i:$lemma:$predTag")
-      features.incrementCount(s"lemma:$i:$lemma:$predTag:$before")
-      features.incrementCount(s"lemma:$i:$tag:$predLemma")
-      features.incrementCount(s"lemma:$i:$tag:$predLemma:$before")
+      features.incrementCount(s"lemma$i:$lemma:$predTag")
+      features.incrementCount(s"lemma$i:$lemma:$predTag:$before")
+      features.incrementCount(s"lemma$i:$tag:$predLemma")
+      features.incrementCount(s"lemma$i:$tag:$predLemma:$before")
 
       // of POS tags
-      features.incrementCount(s"tag:$i:$tag")
-      features.incrementCount(s"tag:$i:$tag:$before")
-      features.incrementCount(s"tag:$i:$tag:$predTag")
-      features.incrementCount(s"tag:$i:$tag:$predTag:$before")
+      features.incrementCount(s"tag$i:$tag")
+      features.incrementCount(s"tag$i:$tag:$before")
+      features.incrementCount(s"tag$i:$tag:$predTag")
+      features.incrementCount(s"tag$i:$tag:$predTag:$before")
     }
 
     val argTag = tagAt(sent, position)
