@@ -73,7 +73,7 @@ class ArgumentClassifier {
     }
 
     val chosenGroups = Datasets.incrementalFeatureSelection(
-      dataset, svmFactory, simpleF1, featureGroups)
+      dataset, svmFactory, simpleF1, featureGroups, numFolds = 4)
     logger.info(s"Selected ${chosenGroups.size} feature groups: " + chosenGroups)
     System.exit(0)
 
