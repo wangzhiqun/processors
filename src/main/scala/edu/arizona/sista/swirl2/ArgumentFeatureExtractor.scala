@@ -55,51 +55,51 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       //println(s"Dependencies:\n$deps")
       //println(s"Path between $pred and $arg: $pst")
 
-      features.incrementCount(s"path$prefix:$before:$predTag-$pst-$argTag")
-      features.incrementCount(s"path$prefix:$before:$predLemma-$pst-$argLemma")
-      features.incrementCount(s"path$prefix:$predTag-$pst-$argTag")
-      features.incrementCount(s"path$prefix:$predLemma-$pst-$argLemma")
+      features.incrementCount(s"path$prefix$before-TTAG:$predTag-$pst-$argTag")
+      features.incrementCount(s"path$prefix$before-TLEMMA:$predLemma-$pst-$argLemma")
+      features.incrementCount(s"path$prefix-TTAG:$predTag-$pst-$argTag")
+      features.incrementCount(s"path$prefix-TLEMMA:$predLemma-$pst-$argLemma")
 
 
       // path including lemmas along the way
       val psl = pathToString(path, sent, useTags = false, useLemmas = true)
-      features.incrementCount(s"path$prefix:$before:$predTag-$psl-$argTag")
-      features.incrementCount(s"path$prefix:$before:$predLemma-$psl-$argLemma")
-      features.incrementCount(s"path$prefix:$predTag-$psl-$argTag")
-      features.incrementCount(s"path$prefix:$predLemma-$psl-$argLemma")
+      features.incrementCount(s"path$prefix$before-LTAG:$predTag-$psl-$argTag")
+      features.incrementCount(s"path$prefix$before-LLEMMA:$predLemma-$psl-$argLemma")
+      features.incrementCount(s"path$prefix-LTAG:$predTag-$psl-$argTag")
+      features.incrementCount(s"path$prefix-LLEMMA:$predLemma-$psl-$argLemma")
 
       // no tags, no lemmas
       val ps = pathToString(path, sent, useTags = false, useLemmas = false)
-      features.incrementCount(s"path$prefix:$before:$predTag-$ps-$argTag")
-      features.incrementCount(s"path$prefix:$before:$predLemma-$ps-$argLemma")
-      features.incrementCount(s"path$prefix:$predTag-$ps-$argTag")
-      features.incrementCount(s"path$prefix:$predLemma-$ps-$argLemma")
+      features.incrementCount(s"path$prefix$before-TAG:$predTag-$ps-$argTag")
+      features.incrementCount(s"path$prefix$before-LEMMA:$predLemma-$ps-$argLemma")
+      features.incrementCount(s"path$prefix-TAG:$predTag-$ps-$argTag")
+      features.incrementCount(s"path$prefix-LEMMA:$predLemma-$ps-$argLemma")
     })
-
-    val dirs = pathsDirection(paths)
-    if(dirs.contains(">")) {
-      val outgoing = deps.outgoingEdges(pred).sortBy(_._1)
-      val b = new StringBuilder()
-      b.append("predchildren:")
-      var first = true
-      var foundArg = false
-      for(o <- outgoing) {
-        if(! first) b.append("-")
-        b.append(o._2)
-        if(o._1 == arg) {
-          foundArg = true
-          b.append("(A)")
-        }
-        first = false
-      }
-      assert(foundArg == true)
-      //println(b.toString())
-      features.incrementCount(b.toString())
-    }
 
     for(path <- paths) {
       val dir = path.map(d => s"${d._4}").mkString("")
-      if(dir == "<>") {
+
+      if(dir == ">") {
+        val outgoing = deps.outgoingEdges(pred).sortBy(_._1)
+        val b = new StringBuilder()
+        b.append("predchildren:")
+        var first = true
+        var foundArg = false
+        for(o <- outgoing) {
+          if(! first) b.append("-")
+          b.append(o._2)
+          if(o._1 == arg) {
+            foundArg = true
+            b.append("(A)")
+          }
+          first = false
+        }
+        assert(foundArg == true)
+        //println(b.toString())
+        features.incrementCount(b.toString())
+      }
+
+      else if(dir == "<>" || dir == "<") {
         val parent = path.head._1
         val outgoing = deps.outgoingEdges(parent).sortBy(_._1)
         val b = new StringBuilder()
@@ -107,6 +107,10 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
         var first = true
         var foundArg = false
         var foundPred = false
+        if(parent == arg) {
+          b.append("(A)")
+          foundArg = true
+        }
         for(o <- outgoing) {
           if(! first) b.append("-")
           b.append(o._2)
@@ -125,6 +129,34 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
         //println(b.toString())
         features.incrementCount(b.toString())
       }
+
+      else if(dir == "<<>") {
+        val grandParent = path(1)._1
+        val parent = path.head._1
+        val outgoing = deps.outgoingEdges(grandParent).sortBy(_._1)
+        val b = new StringBuilder()
+        b.append("grandparentchildren:")
+        var first = true
+        var foundArg = false
+        var foundPred = false
+        for(o <- outgoing) {
+          if(! first) b.append("-")
+          b.append(o._2)
+          if(o._1 == arg) {
+            foundArg = true
+            b.append("(A)")
+          }
+          if(o._1 == parent) {
+            foundPred = true
+            b.append("(PP)")
+          }
+          first = false
+        }
+        assert(foundArg == true)
+        assert(foundPred == true)
+        //println(b.toString())
+        features.incrementCount(b.toString())
+      }
     }
   }
 
@@ -135,13 +167,6 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       path.map(d => s"${d._3}${d._4}${lemmaAt(sent, endPoint(d))}").mkString("-")
     else
       path.map(d => s"${d._3}${d._4}").mkString("-")
-  }
-
-  def pathsDirection(paths:Seq[Seq[(Int, Int, String, String)]]):Set[String] = {
-    val dirs = new mutable.HashSet[String]
-    for(path <- paths)
-      dirs += path.map(d => s"${d._4}").mkString("")
-    dirs.toSet
   }
 
   def endPoint(dep:(Int, Int, String, String)):Int = {
@@ -175,22 +200,22 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       val tag = tagAt(sent, position + i)
 
       // of lemmas
-      features.incrementCount(s"lemma$i:$lemma")
-      features.incrementCount(s"lemma$i:$lemma:$before")
-      features.incrementCount(s"lemma$i:$lemma:$predLemma")
-      features.incrementCount(s"lemma$i:$lemma:$predLemma:$before")
+      features.incrementCount(s"lemma$i-LEMMA:$lemma")
+      features.incrementCount(s"lemma$i$before-LEMMA:$lemma")
+      features.incrementCount(s"lemma$i-PL-LEMMA:$lemma:$predLemma")
+      features.incrementCount(s"lemma$i$before-PL-LEMMA:$lemma:$predLemma")
 
       // hybrid
-      features.incrementCount(s"lemma$i:$lemma:$predTag")
-      features.incrementCount(s"lemma$i:$lemma:$predTag:$before")
-      features.incrementCount(s"lemma$i:$tag:$predLemma")
-      features.incrementCount(s"lemma$i:$tag:$predLemma:$before")
+      features.incrementCount(s"lemma$i-PT-LEMMA:$lemma:$predTag")
+      features.incrementCount(s"lemma$i$before-PT-LEMMA:$lemma:$predTag")
+      features.incrementCount(s"lemma$i-PL-TAG:$tag:$predLemma")
+      features.incrementCount(s"lemma$i$before-PL-TAG:$tag:$predLemma")
 
       // of POS tags
-      features.incrementCount(s"tag$i:$tag")
-      features.incrementCount(s"tag$i:$tag:$before")
-      features.incrementCount(s"tag$i:$tag:$predTag")
-      features.incrementCount(s"tag$i:$tag:$predTag:$before")
+      features.incrementCount(s"tag$i-TAG:$tag")
+      features.incrementCount(s"tag$i$before-TAG:$tag")
+      features.incrementCount(s"tag$i-PT-TAG:$tag:$predTag")
+      features.incrementCount(s"tag$i$before-PT-TAG:$tag:$predTag")
     }
 
     val argTag = tagAt(sent, position)
@@ -212,22 +237,22 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
         // TODO: add pDep
 
         // lemmas
-        features.incrementCount(s"plemma:$pLemma")
-        features.incrementCount(s"plemma:$pLemma:$before")
-        features.incrementCount(s"plemma:$pLemma:$predLemma")
-        features.incrementCount(s"plemma:$pLemma:$predLemma:$before")
+        features.incrementCount(s"plemma-LEMMA:$pLemma")
+        features.incrementCount(s"plemma$before-LEMMA:$pLemma")
+        features.incrementCount(s"plemma-PL-LEMMA:$pLemma:$predLemma")
+        features.incrementCount(s"plemma$before-PL-LEMMA:$pLemma:$predLemma")
 
         // tags
-        features.incrementCount(s"ptag:$pTag")
-        features.incrementCount(s"ptag:$pTag:$before")
-        features.incrementCount(s"ptag:$pTag:$predTag")
-        features.incrementCount(s"ptag:$pTag:$predTag:$before")
+        features.incrementCount(s"ptag-TAG:$pTag")
+        features.incrementCount(s"ptag$before-TAG:$pTag")
+        features.incrementCount(s"ptag-PT-TAG:$pTag:$predTag")
+        features.incrementCount(s"ptag$before-PT-TAG:$pTag:$predTag")
 
         // hybrid
-        features.incrementCount(s"pLemma:$pLemma:$predTag")
-        features.incrementCount(s"pLemma:$pLemma:$predTag:$before")
-        features.incrementCount(s"pLemma:$pTag:$predLemma")
-        features.incrementCount(s"pLemma:$pTag:$predLemma:$before")
+        features.incrementCount(s"pLemma-PT-LEMMA:$pLemma:$predTag")
+        features.incrementCount(s"pLemma$before-PT-LEMMA:$pLemma:$predTag")
+        features.incrementCount(s"pLemma-PL-TAG:$pTag:$predLemma")
+        features.incrementCount(s"pLemma$before-PL-TAG:$pTag:$predLemma")
       }
     }
 
