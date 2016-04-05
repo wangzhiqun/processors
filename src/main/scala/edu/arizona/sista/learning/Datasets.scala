@@ -1,6 +1,6 @@
 package edu.arizona.sista.learning
 
-import java.io.{Reader, Writer}
+import java.io.{FileWriter, PrintWriter, Reader, Writer}
 
 import scala.collection.mutable.{ListBuffer, ArrayBuffer}
 import edu.arizona.sista.struct.Counter
@@ -155,11 +155,14 @@ object Datasets {
     numFolds:Int = 5,
     nCores:Int = 8):Set[String] = {
 
+    val os = new PrintWriter(new FileWriter("incremental_feature_selection.log"))
+
     // first, let's find the performance using all features
     val datasetOutput = crossValidate(dataset, classifierFactory, numFolds)
     val datasetScore = scoringMetric(datasetOutput)
-    logger.info(s"Iteration #0: Score using ALL features is $datasetScore.")
-    logger.info(s"Iteration #0: Using ${featureGroups.size} feature groups and ${dataset.featureLexicon.size} features.")
+    os.println(s"Iteration #0: Score using ALL features is $datasetScore.")
+    os.println(s"Iteration #0: Using ${featureGroups.size} feature groups and ${dataset.featureLexicon.size} features.")
+    os.flush()
 
     val chosenGroups = new mutable.HashSet[String]()
     val allBetterChosenGroups = new mutable.HashSet[String]()
@@ -186,7 +189,8 @@ object Datasets {
           bestScore = score
           bestGroup = group
           bestFeatures = featureGroups.get(group).get
-          logger.debug(s"Iteration #$iteration: found new best group [$bestGroup] with score $bestScore.")
+          os.println(s"Iteration #$iteration: found new best group [$bestGroup] with score $bestScore.")
+          os.flush()
           if(iteration > 1) allBetterChosenGroups += bestGroup
         }
       }
@@ -194,19 +198,25 @@ object Datasets {
 
       if(bestGroup == null) {
         meatLeftOnTheBone = false
-        logger.info(s"Iteration #$iteration: no better group found. Search complete.")
+        os.println(s"Iteration #$iteration: no better group found. Search complete.")
       } else {
-        logger.info(s"Iteration #$iteration: best group found is [$bestGroup] with score $bestScore.")
+        os.println(s"Iteration #$iteration: best group found is [$bestGroup] with score $bestScore.")
         chosenGroups += bestGroup
         chosenFeatures ++= bestFeatures
-        logger.info(s"Iteration #$iteration: we now have ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
+        os.println(s"Iteration #$iteration: we now have ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
       }
+      os.flush()
 
       iteration += 1
     }
 
     logger.info(s"Iteration #$iteration: process ended with score $bestScore using ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
     logger.info(s"Found ${allBetterChosenGroups.size} better groups: ${allBetterChosenGroups.toSet}")
+
+    os.println(s"Iteration #$iteration: process ended with score $bestScore using ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
+    os.println(s"Found ${allBetterChosenGroups.size} better groups: ${allBetterChosenGroups.toSet}")
+    os.close()
+
     chosenGroups.toSet
   }
 
