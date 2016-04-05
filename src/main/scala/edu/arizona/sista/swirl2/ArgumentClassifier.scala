@@ -2,10 +2,9 @@ package edu.arizona.sista.swirl2
 
 import java.io._
 
-import de.bwaldvogel.liblinear.SolverType
 import edu.arizona.sista.learning._
 import edu.arizona.sista.processors.{Sentence, Document}
-import edu.arizona.sista.struct.{DirectedGraphEdgeIterator, DirectedGraph, Counter}
+import edu.arizona.sista.struct.{Lexicon, DirectedGraphEdgeIterator, DirectedGraph, Counter}
 import edu.arizona.sista.utils.Files
 import edu.arizona.sista.utils.StringUtils._
 import org.slf4j.LoggerFactory
@@ -67,6 +66,17 @@ class ArgumentClassifier {
     }
 
     dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
+    val featureGroups = findFeatureGroups(":", dataset.featureLexicon)
+    logger.debug(s"Found ${featureGroups.size} feature groups:")
+    for(f <- featureGroups.keySet) {
+      logger.debug(s"Group $f containing ${featureGroups.get(f).get.size} features.")
+    }
+
+    val chosenGroups = Datasets.incrementalFeatureSelection(
+      dataset, svmFactory, simpleF1, featureGroups)
+    logger.info(s"Selected ${chosenGroups.size} feature groups: " + chosenGroups)
+    System.exit(0)
+
     //dataset = dataset.removeFeaturesByInformationGain(0.05)
     //classifier = Some(new LogisticRegressionClassifier[String, String](C = 1))
     //classifier = Some(new L1LogisticRegressionClassifier[String, String](C = 0.01))
@@ -86,6 +96,53 @@ class ArgumentClassifier {
   }
 
   def featuresPerNode(total:Int):Int = RFClassifier.featuresPerNodeTwoThirds(total)// (10.0 * math.sqrt(total.toDouble)).toInt
+
+  def svmFactory():Classifier[String, String] = new LinearSVMClassifier[String, String]()
+
+  def f1(output:Iterable[(String, String)]):(Double, Double, Double, Int, Int, Int) = {
+    var total = 0
+    var pred = 0
+    var correct = 0
+    for(o <- output) {
+      val gold = o._1
+      val sys = o._2
+      if(gold == POS_LABEL) total += 1
+      if(sys == POS_LABEL) {
+        pred += 1
+        if(sys == gold) correct += 1
+      }
+    }
+    val p = correct.toDouble / pred.toDouble
+    val r = correct.toDouble / total.toDouble
+    val f = 2 * p * r / (p + r)
+    (p, r, f, correct, pred, total)
+  }
+
+  def simpleF1(output:Iterable[(String, String)]):Double = f1(output)._3
+
+  def prefix(f:String, sep:String):String = {
+    var pref = f
+    val i = f.indexOf(sep)
+    if(i > 0) pref = f.substring(0, i)
+    pref
+  }
+
+  def findFeatureGroups(sep:String, lexicon:Lexicon[String]):Map[String, Set[Int]] = {
+    val groups = new mutable.HashMap[String, mutable.HashSet[Int]]()
+    for(f <- lexicon.keySet) {
+      val pref = prefix(f, sep)
+
+      if(! groups.contains(pref))
+        groups.put(pref, new mutable.HashSet[Int]())
+      groups.get(pref).get += lexicon.get(f).get
+    }
+
+    val img = new mutable.HashMap[String, Set[Int]]()
+    for(k <- groups.keySet) {
+      img.put(k, groups.get(k).get.toSet)
+    }
+    img.toMap
+  }
 
   def test(testPath:String): Unit = {
     val reader = new Reader
