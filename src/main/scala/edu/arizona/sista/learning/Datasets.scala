@@ -152,6 +152,7 @@ object Datasets {
     classifierFactory: () => Classifier[L, F],
     scoringMetric: (Iterable[(L, L)]) => Double,
     featureGroups:Map[String, Set[Int]],
+    startingGroups:Option[Set[String]] = None,
     numFolds:Int = 5,
     nCores:Int = 8):Set[String] = {
 
@@ -165,8 +166,16 @@ object Datasets {
     os.flush()
 
     val chosenGroups = new mutable.HashSet[String]()
-    val allBetterChosenGroups = new mutable.HashSet[String]()
     val chosenFeatures = new mutable.HashSet[Int]()
+
+    if(startingGroups.isDefined) {
+      chosenGroups ++= startingGroups.get
+      for(sg <- startingGroups.get) {
+        assert(featureGroups.contains(sg))
+        chosenFeatures ++= featureGroups.get(sg).get
+      }
+    }
+
     var bestScore = Double.MinValue
     var iteration = 1
     var meatLeftOnTheBone = true
@@ -191,10 +200,8 @@ object Datasets {
           bestFeatures = featureGroups.get(group).get
           os.println(s"Iteration #$iteration: found new best group [$bestGroup] with score $bestScore.")
           os.flush()
-          if(iteration > 1) allBetterChosenGroups += bestGroup
         }
       }
-
 
       if(bestGroup == null) {
         meatLeftOnTheBone = false
@@ -211,10 +218,8 @@ object Datasets {
     }
 
     logger.info(s"Iteration #$iteration: process ended with score $bestScore using ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
-    logger.info(s"Found ${allBetterChosenGroups.size} better groups: ${allBetterChosenGroups.toSet}")
 
     os.println(s"Iteration #$iteration: process ended with score $bestScore using ${chosenGroups.size} chosen groups and ${chosenFeatures.size} chosen features.")
-    os.println(s"Found ${allBetterChosenGroups.size} better groups: ${allBetterChosenGroups.toSet}")
     os.close()
 
     chosenGroups.toSet

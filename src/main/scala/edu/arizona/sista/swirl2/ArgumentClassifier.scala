@@ -72,8 +72,9 @@ class ArgumentClassifier {
       logger.debug(s"Group $f containing ${featureGroups.get(f).get.size} features.")
     }
 
+    val startingGroups = Set("pathB-TAG", "lemma0-PT-LEMMA", "same", "lemma0-PL-TAG", "pathB-LEMMA", "pathBT-TTAG", "tag0-PT-TAG")
     val chosenGroups = Datasets.incrementalFeatureSelection(
-      dataset, svmFactory, simpleF1, featureGroups, numFolds = 4)
+      dataset, svmFactory, simpleF1, featureGroups, Some(startingGroups), numFolds = 4)
     logger.info(s"Selected ${chosenGroups.size} feature groups: " + chosenGroups)
     System.exit(0)
 
