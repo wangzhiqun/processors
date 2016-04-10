@@ -66,6 +66,9 @@ class ArgumentClassifier {
     }
 
     dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
+
+    /*
+    // feature selection
     val featureGroups = findFeatureGroups(":", dataset.featureLexicon)
     logger.debug(s"Found ${featureGroups.size} feature groups:")
     for(f <- featureGroups.keySet) {
@@ -77,6 +80,7 @@ class ArgumentClassifier {
       dataset, svmFactory, simpleF1, featureGroups, Some(startingGroups), numFolds = 4)
     logger.info(s"Selected ${chosenGroups.size} feature groups: " + chosenGroups)
     System.exit(0)
+    */
 
     //dataset = dataset.removeFeaturesByInformationGain(0.05)
     //classifier = Some(new LogisticRegressionClassifier[String, String](C = 1))
@@ -120,13 +124,6 @@ class ArgumentClassifier {
   }
 
   def simpleF1(output:Iterable[(String, String)]):Double = f1(output)._3
-
-  def prefix(f:String, sep:String):String = {
-    var pref = f
-    val i = f.indexOf(sep)
-    if(i > 0) pref = f.substring(0, i)
-    pref
-  }
 
   def findFeatureGroups(sep:String, lexicon:Lexicon[String]):Map[String, Set[Int]] = {
     val groups = new mutable.HashMap[String, mutable.HashSet[Int]]()
@@ -525,7 +522,7 @@ object ArgumentClassifier {
 
       if(props.containsKey("model")) {
         val os = new PrintWriter(new BufferedWriter(new FileWriter(props.getProperty("model"))))
-        // ac.saveTo(os)
+        ac.saveTo(os)
         os.close()
       }
     }
@@ -533,7 +530,7 @@ object ArgumentClassifier {
     if(props.containsKey("test")) {
       if(props.containsKey("model")) {
         val is = new BufferedReader(new FileReader(props.getProperty("model")))
-        // ac = loadFrom(is)
+        ac = loadFrom(is)
         is.close()
       }
 
@@ -557,5 +554,12 @@ object ArgumentClassifier {
     ac.featureExtractor.lemmaCounts = ac.lemmaCounts
 
     ac
+  }
+
+  def prefix(f:String, sep:String):String = {
+    var pref = f
+    val i = f.indexOf(sep)
+    if(i > 0) pref = f.substring(0, i)
+    pref
   }
 }

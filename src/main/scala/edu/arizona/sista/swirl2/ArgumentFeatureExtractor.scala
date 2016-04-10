@@ -184,6 +184,7 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
 
     if(position == pred) {
       features.incrementCount(s"same:$predLemma:$predTag")
+      features.incrementCount(s"same-lemma:$predLemma")
       return features
     }
 
@@ -301,6 +302,39 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
     }
     */
 
+    filter(features)
+  }
+
+  def filter(feats:Counter[String]):Counter[String] = {
+    val selectedPrefixes = Set(
+      "pathB-TAG",
+      "lemma0-PT-LEMMA",
+      "same",
+      "lemma0-PL-TAG",
+      "pathB-LEMMA",
+      "pathBT-TTAG",
+      "tag0-PT-TAG",
+      "lemma1true-PT-LEMMA",
+      "pathB-LTAG",
+      "pathB-TTAG",
+      "grandparentchildren",
+      "lemma1true-PL-LEMMA",
+      "pathBT-TAG",
+      "lemma-1false-PL-LEMMA",
+      "lemma0-PL-LEMMA",
+      "predchildren",
+      "pathBF-TAG",
+      "parentchildren",
+      "ptag-PT-TAG",
+      "tag1true-PT-TAG",
+      "same-lemma"
+    )
+    val features = new Counter[String]()
+    for(f <- feats.keySet) {
+      if(selectedPrefixes.contains(ArgumentClassifier.prefix(f, ":"))) {
+        features.setCount(f, feats.getCount(f))
+      }
+    }
     features
   }
 
