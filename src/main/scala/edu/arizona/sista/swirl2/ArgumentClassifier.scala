@@ -25,6 +25,7 @@ class ArgumentClassifier {
 
   var classifier:Option[Classifier[String, String]] = None
   var lemmaCounts:Option[Counter[String]] = None
+  //var scaleRange:Option[ScaleRange[String]] = None
 
   def train(trainPath:String): Unit = {
     val datasetFileName = "swirl2_argument_classification_dataset.ser"
@@ -66,6 +67,7 @@ class ArgumentClassifier {
     }
 
     dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
+    //scaleRange = Some(Datasets.svmScaleDataset(dataset))
 
     /*
     // feature selection
@@ -87,8 +89,9 @@ class ArgumentClassifier {
     //classifier = Some(new L1LogisticRegressionClassifier[String, String](C = 0.01))
     //classifier = Some(new LibSVMClassifier[String, String](PolynomialKernel))
     classifier = Some(new LinearSVMClassifier[String, String]())
+    //classifier = Some(new L1LinearSVMClassifier[String, String]())
     //classifier = Some(new RFClassifier[String, String](numTrees = 10, maxTreeDepth = 100, howManyFeaturesPerNode = featuresPerNode))
-    //classifier = Some(new PerceptronClassifier[String, String](epochs = 5))
+    //classifier = Some(new PerceptronClassifier[String, String](epochs = 10))
 
     classifier.get match {
       case rfc:RFClassifier[String, String] =>
@@ -389,7 +392,7 @@ class ArgumentClassifier {
   }
 
   def classify(sent:Sentence, arg:Int, pred:Int, history:ArrayBuffer[(Int, String)]):Counter[String] = {
-    val datum = mkDatum(sent, arg, pred, history, NEG_LABEL)
+    val datum = mkDatum(sent, arg, pred, history, NEG_LABEL, true)
     val s = classifier.get.scoresOf(datum)
     s
   }
@@ -410,13 +413,13 @@ class ArgumentClassifier {
           if(ValidCandidate.isValid(s, arg, pred)) {
             val label = findArgLabel(arg, args)
             if (label.isDefined && labelStats.getCount(label.get) > 0) { // TODO: LABEL_THRESHOLD) {
-              dataset += mkDatum(s, arg, pred, history, POS_LABEL) // TODO: label.get)
+              dataset += mkDatum(s, arg, pred, history, POS_LABEL, false) // TODO: label.get)
               history += new Tuple2(arg, label.get)
               //addPath(s, arg, pred, pathStats)
             } else {
               // down sample negatives
               if (random.nextDouble() < DOWNSAMPLE_PROB) {
-                dataset += mkDatum(s, arg, pred, history, NEG_LABEL)
+                dataset += mkDatum(s, arg, pred, history, NEG_LABEL, false)
               }
             }
           } else {
@@ -462,8 +465,13 @@ class ArgumentClassifier {
     position < oes.length && oes(position) != null && oes(position).nonEmpty
   }
 
-  def mkDatum(sent:Sentence, arg:Int, pred:Int, history:ArrayBuffer[(Int, String)], label:String): RVFDatum[String, String] =
-    new RVFDatum[String, String](label, featureExtractor.mkFeatures(sent, arg, pred, history))
+  def mkDatum(sent:Sentence, arg:Int, pred:Int, history:ArrayBuffer[(Int, String)], label:String, scale:Boolean): RVFDatum[String, String] = {
+    val feats = featureExtractor.mkFeatures(sent, arg, pred, history)
+
+    // if(scale) feats = Datasets.svmScaleDatum(feats, scaleRange.get)
+
+    new RVFDatum[String, String](label, feats)
+  }
 
   def computeArgStats(doc:Document): Counter[String] = {
     val posStats = new Counter[String]()
@@ -507,7 +515,7 @@ object ArgumentClassifier {
 
   val LABEL_THRESHOLD = 1000
   val FEATURE_THRESHOLD = 1
-  val DOWNSAMPLE_PROB = 0.50
+  val DOWNSAMPLE_PROB = 0.66
   val MAX_TRAINING_DATUMS = 0 // 0 means all data
 
   val POS_LABEL = "+"
@@ -515,14 +523,14 @@ object ArgumentClassifier {
 
   def main(args:Array[String]): Unit = {
     val props = argsToProperties(args)
-    var ac = new ArgumentClassifier
+    val ac = new ArgumentClassifier
 
     if(props.containsKey("train")) {
       ac.train(props.getProperty("train"))
 
       if(props.containsKey("model")) {
         val os = new PrintWriter(new BufferedWriter(new FileWriter(props.getProperty("model"))))
-        ac.saveTo(os)
+        //ac.saveTo(os)
         os.close()
       }
     }
@@ -530,7 +538,7 @@ object ArgumentClassifier {
     if(props.containsKey("test")) {
       if(props.containsKey("model")) {
         val is = new BufferedReader(new FileReader(props.getProperty("model")))
-        ac = loadFrom(is)
+        //ac = loadFrom(is)
         is.close()
       }
 

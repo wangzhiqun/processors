@@ -6,9 +6,6 @@ import edu.arizona.sista.struct.{Counter, DirectedGraph}
 
 import ArgumentFeatureExtractor._
 
-import scala.StringBuilder
-import scala.collection.immutable.HashSet
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -47,6 +44,15 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
     val predLemma = lemmaAt(sent, pred)
     val before = if(arg < pred) "T" else "F"
     val paths = deps.shortestPathEdges(pred, arg, ignoreDirection = true)
+
+    var minLen = 100
+    for(path <- paths) {
+      if(path.size < minLen) {
+        minLen = path.size
+      }
+    }
+    features.incrementCount(s"pathlen$prefix:$minLen")
+
     paths.foreach(path => {
       // path including POS tags
       val pst = pathToString(path, sent, useTags = true, useLemmas = false)
@@ -74,6 +80,7 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       features.incrementCount(s"path$prefix$before-LEMMA:$predLemma-$ps-$argLemma")
       features.incrementCount(s"path$prefix-TAG:$predTag-$ps-$argTag")
       features.incrementCount(s"path$prefix-LEMMA:$predLemma-$ps-$argLemma")
+      features.incrementCount(s"path$prefix:$ps")
     })
 
     for(path <- paths) {
@@ -94,7 +101,7 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
           }
           first = false
         }
-        assert(foundArg == true)
+        assert(foundArg)
         //println(b.toString())
         features.incrementCount(b.toString())
       }
@@ -124,8 +131,8 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
           }
           first = false
         }
-        assert(foundArg == true)
-        assert(foundPred == true)
+        assert(foundArg)
+        assert(foundPred)
         //println(b.toString())
         features.incrementCount(b.toString())
       }
@@ -152,8 +159,8 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
           }
           first = false
         }
-        assert(foundArg == true)
-        assert(foundPred == true)
+        assert(foundArg)
+        assert(foundPred)
         //println(b.toString())
         features.incrementCount(b.toString())
       }
@@ -189,11 +196,19 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
     }
 
     val before: Boolean = position < pred
+    features.incrementCount(s"before:$before")
+    features.setCount("tokendist", math.abs(position - pred))
 
     if(sent.stanfordBasicDependencies.isDefined)
       addDepFeatures(features, "B", sent, sent.stanfordBasicDependencies.get, position, pred)
     if(sent.stanfordCollapsedDependencies.isDefined)
       addDepFeatures(features, "C", sent, sent.stanfordCollapsedDependencies.get, position, pred)
+
+    // between lemmas
+    for(i <- math.min(pred, position) + 1 until math.max(pred, position)) {
+      val lemma = lemmaAt(sent, i)
+      features.incrementCount(s"between:$lemma")
+    }
 
     // unigrams
     for (i <- Range(-1, 2)) {
@@ -307,9 +322,11 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
 
   def filter(feats:Counter[String]):Counter[String] = {
     val selectedPrefixes = Set(
+      "pathB",
       "pathB-TAG",
       "lemma0-PT-LEMMA",
       "same",
+      "same-lemma",
       "lemma0-PL-TAG",
       "pathB-LEMMA",
       "pathBT-TTAG",
@@ -327,7 +344,16 @@ class ArgumentFeatureExtractor(word2vecFile:String) {
       "parentchildren",
       "ptag-PT-TAG",
       "tag1true-PT-TAG",
-      "same-lemma"
+      "tag-1-TAG",
+      "ptagfalse-TAG",
+      "lemma0false-PL-TAG",
+      "plemma-PL-LEMMA",
+      "pathBF-TTAG",
+
+      "between"
+      //"pathlenB"
+      //before
+      //"tokendist"
     )
     val features = new Counter[String]()
     for(f <- feats.keySet) {
