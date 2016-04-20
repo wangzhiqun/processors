@@ -230,7 +230,7 @@ class ArgumentClassifier {
     // second, find arguments for each predicate
     for(pred <- roots) {
       val history = new ArrayBuffer[(Int, String)]()
-      val argCandidates = new ArrayBuffer[(Int, List[(String, Double)])]
+      // val argCandidates = new ArrayBuffer[(Int, List[(String, Double)])]
       for(arg <- sentence.words.indices) {
         var predLabel = ArgumentClassifier.NEG_LABEL
         if (ValidCandidate.isValid(sentence, arg, pred)) {
@@ -393,7 +393,7 @@ class ArgumentClassifier {
   }
 
   def classify(sent:Sentence, arg:Int, pred:Int, history:ArrayBuffer[(Int, String)]):Counter[String] = {
-    val datum = mkDatum(sent, arg, pred, history, NEG_LABEL, true)
+    val datum = mkDatum(sent, arg, pred, history, NEG_LABEL, scale = true)
     val s = classifier.get.scoresOf(datum)
     s
   }
@@ -414,13 +414,13 @@ class ArgumentClassifier {
           if(ValidCandidate.isValid(s, arg, pred)) {
             val label = findArgLabel(arg, args)
             if (label.isDefined && labelStats.getCount(label.get) > 0) { // TODO: LABEL_THRESHOLD) {
-              dataset += mkDatum(s, arg, pred, history, POS_LABEL, false) // TODO: label.get)
+              dataset += mkDatum(s, arg, pred, history, POS_LABEL, scale = false) // TODO: label.get)
               history += new Tuple2(arg, label.get)
               //addPath(s, arg, pred, pathStats)
             } else {
               // down sample negatives
               if (random.nextDouble() < DOWNSAMPLE_PROB) {
-                dataset += mkDatum(s, arg, pred, history, NEG_LABEL, false)
+                dataset += mkDatum(s, arg, pred, history, NEG_LABEL, scale = false)
               }
             }
           } else {
@@ -516,7 +516,7 @@ object ArgumentClassifier {
 
   val LABEL_THRESHOLD = 1000
   val FEATURE_THRESHOLD = 1
-  val DOWNSAMPLE_PROB = 0.66
+  val DOWNSAMPLE_PROB = 0.66 // keep negative examples with this probability
   val MAX_TRAINING_DATUMS = 0 // 0 means all data
 
   val POS_LABEL = "+"
