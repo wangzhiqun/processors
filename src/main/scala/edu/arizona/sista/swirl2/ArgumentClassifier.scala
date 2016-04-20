@@ -66,7 +66,8 @@ class ArgumentClassifier {
       }
     }
 
-    dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
+    if(FEATURE_THRESHOLD > 1)
+      dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
     //scaleRange = Some(Datasets.svmScaleDataset(dataset))
 
     /*
