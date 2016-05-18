@@ -4,7 +4,7 @@ import java.io._
 
 import edu.arizona.sista.learning._
 import edu.arizona.sista.processors.{Sentence, Document}
-import edu.arizona.sista.struct.Counter
+import edu.arizona.sista.struct.{Lexicon, Counter}
 import edu.arizona.sista.utils.Files
 import org.slf4j.LoggerFactory
 
@@ -24,6 +24,9 @@ class PredicateClassifier {
   var classifier:Option[Classifier[String, String]] = None
   var lemmaCounts:Option[Counter[String]] = None
 
+  var featureLexicon:Option[Lexicon[String]] = None
+  var labelLexicon:Option[Lexicon[String]] = None
+
   def train(trainPath:String): Unit = {
     val reader = new Reader
     val doc = reader.load(trainPath)
@@ -34,6 +37,7 @@ class PredicateClassifier {
     featureExtractor.lemmaCounts = lemmaCounts
 
     var dataset = createDataset(doc)
+    Datasets.saveDatasetToSvmLightFormat(dataset, "train.dat")
 
     dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
     //dataset = dataset.removeFeaturesByInformationGain(0.75)
@@ -41,6 +45,9 @@ class PredicateClassifier {
     //classifier = Some(new RFClassifier[String, String](numTrees = 10, howManyFeaturesPerNode = featuresPerNode, nilLabel = Some(NEG_LABEL)))
     //classifier = Some(new LinearSVMClassifier[String, String]())
     classifier.get.train(dataset)
+
+    featureLexicon = Some(dataset.featureLexicon)
+    labelLexicon = Some(dataset.labelLexicon)
   }
 
   def featuresPerNode(total:Int):Int = (total * 0.66).toInt
@@ -48,12 +55,13 @@ class PredicateClassifier {
   def test(testPath:String): Unit = {
     val reader = new Reader
     val doc = reader.load(testPath)
+    val datums = new ListBuffer[Datum[String, String]]
 
     val output = new ListBuffer[(String, String)]
     for(s <- doc.sentences;
         i <- s.words.indices) {
       val g = goldLabel(s, i)
-      val scores = classify(s, i)
+      val scores = classify(s, i, datums, g)
       val p = scores.getCount(POS_LABEL) >= POS_THRESHOLD match {
         case true => POS_LABEL
         case false => NEG_LABEL
@@ -62,11 +70,16 @@ class PredicateClassifier {
     }
 
     BinaryScorer.score(output.toList, NEG_LABEL)
+    Datasets.saveDatumsToSvmLightFormat(datums, featureLexicon.get, labelLexicon.get, "test.dat")
   }
 
-  def classify(sent:Sentence, position:Int):Counter[String] = {
+  def classify(sent:Sentence,
+               position:Int,
+               datums:ListBuffer[Datum[String, String]],
+               goldLabel:String):Counter[String] = {
     if(filter(sent, position)) {
-      val datum = mkDatum(sent, position, NEG_LABEL)
+      val datum = mkDatum(sent, position, goldLabel)
+      datums += datum
       val s = classifier.get.scoresOf(datum)
       //println(s"Scores for datum: $s")
       s

@@ -577,23 +577,19 @@ object Datasets {
   /**
     * Saves one of our Datasets into svm-light format
     * @param dataset the dataset to save
-    * @param featureLexicon feature lexicon
-    * @param labelLexicon label lexicon
     * @param fn output file to generate
     * @tparam L type of datum label
     * @tparam F type of datum features
     */
   def saveDatasetToSvmLightFormat[L, F](
     dataset: Dataset[L, F],
-    featureLexicon: Lexicon[F],
-    labelLexicon: Lexicon[L],
     fn: String): Unit = {
     val datums = new ListBuffer[Datum[L, F]]
     for(i <- 0 until dataset.size) {
       val d = dataset.mkDatum(i)
       datums += d
     }
-    saveDatumsToSvmLightFormat(datums.toList, featureLexicon, labelLexicon, fn)
+    saveDatumsToSvmLightFormat(datums.toList, dataset.featureLexicon, dataset.labelLexicon, fn)
   }
 }
 
