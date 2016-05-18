@@ -4,11 +4,8 @@ import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, ArrayBuffer}
 import edu.arizona.sista.struct.Counter
 import edu.arizona.sista.struct.Lexicon
-import scala.io.BufferedSource
-import java.util.zip.GZIPInputStream
-import java.io.{FileWriter, PrintWriter, FileInputStream, BufferedInputStream}
 import org.slf4j.LoggerFactory
-import RVFDataset._
+import Dataset._
 
 /**
  * Parent class for classification datasets
@@ -50,10 +47,17 @@ abstract class Dataset[L, F](
   def toCounterDataset:CounterDataset[L, F]
 }
 
+
+object Dataset {
+  val logger = LoggerFactory.getLogger(classOf[Dataset[String, String]])
+}
+
+
 /**
  * Dataset containing only BVFDatums
  * Important note: to encode feature values > 1, simply store the same feature multiple times (equal to feature value)!
- * @tparam L Type of labels
+  *
+  * @tparam L Type of labels
  * @tparam F Type of features
  */
 class BVFDataset[L, F] (
@@ -214,10 +218,10 @@ class BVFDataset[L, F] (
 }
 
 /**
- * Dataset containing only RVFDatums
- * @tparam L Type of labels
- * @tparam F Type of features
- */
+  * Dataset containing only RVFDatums
+  * @tparam L Type of labels
+  * @tparam F Type of features
+  */
 class RVFDataset[L, F] (
   ll:Lexicon[L],
   fl:Lexicon[F],
@@ -370,122 +374,6 @@ class InformationGain( var datumCount:Int = 0,
   def pWithout(total:InformationGain) = (total.datumCount - datumCount).toDouble / total.datumCount.toDouble
 }
 
-object RVFDataset {
-  val logger = LoggerFactory.getLogger(classOf[RVFDataset[String, String]])
-
-  def mkDatasetFromSvmLightFormat(fn:String):RVFDataset[Int, String] = {
-    val dataset = new RVFDataset[Int, String]
-    var datumCount = 0
-
-    var source:BufferedSource = null
-    if(fn.endsWith(".gz"))
-      source = io.Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(fn))))
-    else
-      source = io.Source.fromFile(fn)
-
-    for(line <- source.getLines()) {
-      // strip comments following #
-      val pound = line.indexOf("#")
-      var content = line
-      if(pound >= 0) {
-        content = line.substring(0, pound)
-      }
-      content = content.trim
-      // logger.debug("Parsing line: [" + content + "]")
-
-      if(content.length > 0) {
-        val bits = content.split("\\s+")
-
-        var label = bits(0)
-        if(label.startsWith("+")) label = label.substring(1)
-        val features = new Counter[String]
-        for(i <- 1 until bits.length) {
-          val fbits = bits(i).split(":")
-          if(fbits.length != 2) {
-            throw new RuntimeException("ERROR: invalid feature format: " + bits(i))
-          }
-          val f = fbits(0)
-          val v = fbits(1).toDouble
-          features.incrementCount(f, v)
-        }
-        val datum = new RVFDatum[Int, String](label.toInt, features)
-        dataset += datum
-        datumCount += 1
-      }
-    }
-    dataset
-  }
-
-
-  def saveToSvmLightFormat(
-    datums:Iterable[Datum[Int, String]],
-    featureLexicon:Lexicon[String],
-    fn:String) {
-
-    val os = new PrintWriter(new FileWriter(fn))
-    for(datum <- datums) {
-      os.print(datum.label)
-      val fs = new ListBuffer[(Int, Double)]
-      val c = datum.featuresCounter
-      for(k <- c.keySet) {
-        val fi = featureLexicon.get(k)
-        if(fi.isDefined) {
-          // logger.debug(s"Feature [$k] converted to index ${fi.get + 1}")
-          fs += new Tuple2(fi.get + 1, c.getCount(k))
-        }
-      }
-      val fss = fs.toList.sortBy(_._1)
-      for(t <- fss) {
-        os.print(s" ${t._1}:${t._2}")
-      }
-      os.println()
-    }
-    os.close()
-  }
-
-  def mkDatumsFromSvmLightFormat(fn:String):Iterable[Datum[Int, String]] = {
-    val datums = new ArrayBuffer[Datum[Int, String]]()
-    var datumCount = 0
-
-    var source:BufferedSource = null
-    if(fn.endsWith(".gz"))
-      source = io.Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(fn))))
-    else
-      source = io.Source.fromFile(fn)
-
-    for(line <- source.getLines()) {
-      // strip comments following #
-      val pound = line.indexOf("#")
-      var content = line
-      if(pound >= 0) {
-        content = line.substring(0, pound)
-      }
-      content = content.trim
-      //logger.debug("Parsing line: " + content)
-
-      if(content.length > 0) {
-        val bits = content.split("\\s+")
-
-        var label = bits(0)
-        if(label.startsWith("+")) label = label.substring(1)
-        val features = new Counter[String]
-        for(i <- 1 until bits.length) {
-          val fbits = bits(i).split(":")
-          if(fbits.length != 2) {
-            throw new RuntimeException("ERROR: invalid feature format: " + bits(i))
-          }
-          val f = fbits(0)
-          val v = fbits(1).toDouble
-          features.incrementCount(f, v)
-        }
-        val datum = new RVFDatum[Int, String](label.toInt, features)
-        datums += datum
-        datumCount += 1
-      }
-    }
-    datums
-  }
-}
 
 /**
   * Dataset that represents datums as explicit counters

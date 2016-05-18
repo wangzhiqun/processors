@@ -11,13 +11,13 @@ import org.scalatest._
  */
 class TestPerceptronClassifier extends FlatSpec with Matchers {
   "PerceptronClassifier" should "have an accuracy > .97 on this dataset" in {
-    val classifier = new PerceptronClassifier[Int, String](
+    val classifier = new PerceptronClassifier[Int, Int](
       epochs = 10,
       marginRatio = 1.0)
-    val dataset = RVFDataset.mkDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
+    val dataset = Datasets.loadDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
     classifier.train(dataset)
 
-    val datums = RVFDataset.mkDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
+    val datums = Datasets.loadDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
     val acc = computeAcc(datums, classifier)
     //println("Accuracy: " + acc)
     acc should be > 0.97
@@ -27,12 +27,12 @@ class TestPerceptronClassifier extends FlatSpec with Matchers {
     //println(s"Saving classifier to $file")
     file.deleteOnExit()
     classifier.saveTo(file.getAbsolutePath)
-    val loadedClassifier = PerceptronClassifier.loadFrom[Int, String](file.getAbsolutePath)
+    val loadedClassifier = PerceptronClassifier.loadFrom[Int, Int](file.getAbsolutePath)
     val newAcc = computeAcc(datums, loadedClassifier)
     acc should be (newAcc)
   }
 
-  def computeAcc(datums:Iterable[Datum[Int, String]], classifier:Classifier[Int, String]) = {
+  def computeAcc(datums:Iterable[Datum[Int, Int]], classifier:Classifier[Int, Int]) = {
     var total = 0
     var correct = 0
     for(datum <- datums) {

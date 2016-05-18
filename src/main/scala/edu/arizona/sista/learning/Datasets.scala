@@ -1,12 +1,14 @@
 package edu.arizona.sista.learning
 
-import java.io.{FileWriter, PrintWriter, Reader, Writer}
+import java.io._
+import java.util.zip.GZIPInputStream
 
 import scala.collection.mutable.{ListBuffer, ArrayBuffer}
-import edu.arizona.sista.struct.Counter
+import edu.arizona.sista.struct.{Lexicon, Counter}
 import scala.collection.mutable
 import org.slf4j.LoggerFactory
 import scala.collection.parallel.ForkJoinTaskSupport
+import scala.io.BufferedSource
 
 /**
  * Operations on datasets
@@ -469,6 +471,130 @@ object Datasets {
     ig
   }
 
+  /**
+    * Converts a file with data in svm-light format into a collection of our Datums
+    * @param fn file with data
+    * @return iterable of datums
+    */
+  def loadDatumsFromSvmLightFormat(fn:String):Iterable[Datum[Int, Int]] = {
+    val datums = new ArrayBuffer[Datum[Int, Int]]()
+    var datumCount = 0
+
+    var source:BufferedSource = null
+    if(fn.endsWith(".gz"))
+      source = io.Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(fn))))
+    else
+      source = io.Source.fromFile(fn)
+
+    for(line <- source.getLines()) {
+      // strip comments following #
+      val pound = line.indexOf("#")
+      var content = line
+      if(pound >= 0) {
+        content = line.substring(0, pound)
+      }
+      content = content.trim
+      //logger.debug("Parsing line: " + content)
+
+      if(content.length > 0) {
+        val bits = content.split("\\s+")
+
+        var label = bits(0)
+        if(label.startsWith("+")) label = label.substring(1)
+        val features = new Counter[Int]
+        for(i <- 1 until bits.length) {
+          val fbits = bits(i).split(":")
+          if(fbits.length != 2) {
+            throw new RuntimeException("ERROR: invalid feature format: " + bits(i))
+          }
+          val f = fbits(0).toInt
+          val v = fbits(1).toDouble
+          features.incrementCount(f, v)
+        }
+        val datum = new RVFDatum[Int, Int](label.toInt, features)
+        datums += datum
+        datumCount += 1
+      }
+    }
+    datums
+  }
+
+  /**
+    * Converts a file with data in svm-light format into one of our Datasets
+    * @param fn file with data
+    * @return dataset
+    */
+  def loadDatasetFromSvmLightFormat(fn:String):Dataset[Int, Int] = {
+    val datums = loadDatumsFromSvmLightFormat(fn)
+    val dataset = new RVFDataset[Int, Int]()
+    for(d <- datums) {
+      dataset += d
+    }
+    dataset
+  }
+
+  /**
+    * Saves a collection of our Datums into svm-light format
+    * @param datums the collection of datums to save
+    * @param featureLexicon feature lexicon
+    * @param labelLexicon label lexicon
+    * @param fn output file to generate
+    * @tparam L type of datum label
+    * @tparam F type of datum features
+    */
+  def saveDatumsToSvmLightFormat[L, F](
+    datums: Iterable[Datum[L, F]],
+    featureLexicon: Lexicon[F],
+    labelLexicon: Lexicon[L],
+    fn: String) {
+
+    val os = new PrintWriter(new FileWriter(fn))
+    for (datum <- datums) {
+      val l = labelLexicon.get(datum.label)
+      assert(l.isDefined)
+      os.print(l.get)
+      val fs = new ListBuffer[(Int, Double)]
+      val c = datum.featuresCounter
+      for (k <- c.keySet) {
+        val fi = featureLexicon.get(k)
+        if (fi.isDefined) {
+          // logger.debug(s"Feature [$k] converted to index ${fi.get + 1}")
+          fs += new Tuple2(fi.get + 1, c.getCount(k))
+        }
+      }
+      val fss = fs.toList.sortBy(_._1)
+      for (t <- fss) {
+        os.print(s" ${t._1}:${t._2}")
+      }
+      os.println()
+    }
+    os.close()
+
+    // TODO: save the feature and label lexicons in distinct files as well
+  }
+
+
+  /**
+    * Saves one of our Datasets into svm-light format
+    * @param dataset the dataset to save
+    * @param featureLexicon feature lexicon
+    * @param labelLexicon label lexicon
+    * @param fn output file to generate
+    * @tparam L type of datum label
+    * @tparam F type of datum features
+    */
+  def saveDatasetToSvmLightFormat[L, F](
+    dataset: Dataset[L, F],
+    featureLexicon: Lexicon[F],
+    labelLexicon: Lexicon[L],
+    fn: String): Unit = {
+    val datums = new ListBuffer[Datum[L, F]]
+    for(i <- 0 until dataset.size) {
+      val d = dataset.mkDatum(i)
+      datums += d
+    }
+    saveDatumsToSvmLightFormat(datums.toList, featureLexicon, labelLexicon, fn)
+  }
 }
 
 class ScaleRange[F] extends Serializable {

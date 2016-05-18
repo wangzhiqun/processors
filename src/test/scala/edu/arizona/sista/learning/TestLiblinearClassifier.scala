@@ -181,10 +181,10 @@ class TestLiblinearClassifier extends FlatSpec with Matchers {
   }
 
   "LogisticRegressionClassifier" should "have an accuracy > .97 in this dataset" in {
-    val classifier = new LogisticRegressionClassifier[Int, String](bias = false)
-    val dataset = RVFDataset.mkDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
+    val classifier = new LogisticRegressionClassifier[Int, Int](bias = false)
+    val dataset = Datasets.loadDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
     classifier.train(dataset)
-    val datums = RVFDataset.mkDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
+    val datums = Datasets.loadDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
     var total = 0
     var correct = 0
     for(datum <- datums) {
@@ -199,10 +199,10 @@ class TestLiblinearClassifier extends FlatSpec with Matchers {
   }
 
   "LinearSVMClassifier" should "have an accuracy > .97 in this dataset" in {
-    val classifier = new LinearSVMClassifier[Int, String](bias = false)
-    val dataset = RVFDataset.mkDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
+    val classifier = new LinearSVMClassifier[Int, Int](bias = false)
+    val dataset = Datasets.loadDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
     classifier.train(dataset)
-    val datums = RVFDataset.mkDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
+    val datums = Datasets.loadDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
     var total = 0
     var correct = 0
     for(datum <- datums) {

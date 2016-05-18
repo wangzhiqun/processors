@@ -29,13 +29,13 @@ class TestRandomForestClassifier extends FlatSpec with Matchers {
 
   "RandomForestClassifier" should "have an accuracy > .95 on this dataset" in {
     //val classifier = new RandomForestClassifier[Int, String](numTrees = 50, maxTreeDepth = 0)
-    val classifier = new RFClassifier[Int, String]
+    val classifier = new RFClassifier[Int, Int]
 
-    var dataset = RVFDataset.mkDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz").asInstanceOf[Dataset[Int, String]]
+    var dataset = Datasets.loadDatasetFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_train.txt.gz")
     dataset = dataset.removeFeaturesByInformationGain(0.75)
     classifier.train(dataset)
 
-    val datums = RVFDataset.mkDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
+    val datums = Datasets.loadDatumsFromSvmLightFormat("src/test/resources/edu/arizona/sista/learning/classification_test.txt.gz")
     var total = 0
     var correct = 0
     for(datum <- datums) {

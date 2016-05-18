@@ -34,6 +34,7 @@ class PredicateClassifier {
     featureExtractor.lemmaCounts = lemmaCounts
 
     var dataset = createDataset(doc)
+
     dataset = dataset.removeFeaturesByFrequency(FEATURE_THRESHOLD)
     //dataset = dataset.removeFeaturesByInformationGain(0.75)
     classifier = Some(new LogisticRegressionClassifier[String, String]())
