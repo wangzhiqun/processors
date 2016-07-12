@@ -81,5 +81,83 @@ class TestBioNLPTokenizer extends FlatSpec with Matchers {
     s.words(6) should be ("Ku80")
   }
 
-  // TODO: add tests for the tokenization of mutations - DANE
+  val mutantTest1a = "Hsp90/S595A mutant"
+  it should "tokenize protein/family names from substitution mutations" in {
+    val doc = proc.mkDocument(mutantTest1a)
+    val s = doc.sentences(0)
+    s.words(0) should be ("Hsp90")
+    s.words(1) should be ("S595A")
+  }
+
+  val mutantTest1b = "Hsp90/414delCys mutant"
+  it should "tokenize protein/family names from deletion mutations" in {
+    val doc = proc.mkDocument(mutantTest1b)
+    val s = doc.sentences(0)
+    s.words(0) should be ("Hsp90")
+    s.words(1) should be ("414delCys")
+  }
+
+  val mutantTest1c = "Hsp90/Leu81fs mutant"
+  it should "tokenize protein/family names from frameshift mutations" in {
+    val doc = proc.mkDocument(mutantTest1c)
+    val s = doc.sentences(0)
+    s.words(0) should be ("Hsp90")
+    s.words(1) should be ("Leu81fs")
+  }
+
+  val mutantTest1d = "Hsp90/Ser43Val mutant"
+  it should "tokenize protein/family names from long substitution mutations" in {
+    val doc = proc.mkDocument(mutantTest1d)
+    val s = doc.sentences(0)
+    s.words(0) should be ("Hsp90")
+    s.words(1) should be ("Ser43Val")
+  }
+
+  val mutantTest1e = "Hsp90/W34_A36del mutant"
+  it should "tokenize protein/family names from range deletion mutations" in {
+    val doc = proc.mkDocument(mutantTest1e)
+    val s = doc.sentences(0)
+    s.words(0) should be ("Hsp90")
+    s.words(1) should be ("W34_A36del")
+  }
+
+  val mutantTest2a = "p110-S205D/K224A double mutant"
+  it should "NOT tokenize two substitutions separated by slashes" in {
+    val doc = proc.mkDocument(mutantTest2a)
+    val s = doc.sentences(0)
+    s.words(0) should be ("p110")
+    s.words(1) should be ("S205D/K224A")
+  }
+
+  val mutantTest2b = "p110-S205D/K224A/Y243M triple mutant"
+  it should "NOT tokenize three substitutions separated by slashes" in {
+    val doc = proc.mkDocument(mutantTest2b)
+    val s = doc.sentences(0)
+    s.words(0) should be ("p110")
+    s.words(1) should be ("S205D/K224A/Y243M")
+  }
+
+  val mutantTest3 = "PKD3.S731E.S735E"
+  it should "NOT tokenize multiple substitutions separated by periods" in {
+    val doc = proc.mkDocument(mutantTest3)
+    val s = doc.sentences(0)
+    s.words(0) should be ("PKD3")
+    s.words(1) should be ("S731E.S735E")
+  }
+
+  val mutantTest4 = "H69Y-RNF2 mutant"
+  it should "tokenize mutations from following proteins" in {
+    val doc = proc.mkDocument(mutantTest4)
+    val s = doc.sentences(0)
+    s.words(0) should be ("H69Y")
+    s.words(1) should be ("RNF2")
+  }
+
+  val mutantTest5 = "RNF2 91T>Y mutant"
+  it should "NOT tokenize angle-bracket substitution mutations" in {
+    val doc = proc.mkDocument(mutantTest5)
+    val s = doc.sentences(0)
+    s.words(0) should be ("H69Y")
+    s.words(1) should be ("91T>Y")
+  }
 }
