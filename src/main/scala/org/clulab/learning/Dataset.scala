@@ -417,8 +417,8 @@ object RVFDataset {
   }
 
 
-  def saveToSvmLightFormat(
-    datums:Iterable[Datum[Int, String]],
+  def saveToSvmLightFormat[L](
+    datums:Iterable[Datum[L, String]],
     featureLexicon:Lexicon[String],
     fn:String) {
 
