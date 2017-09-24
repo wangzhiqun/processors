@@ -17,7 +17,7 @@ import org.clulab.processors.shallownlp._
 /**
   * Application to wrap and serve various Processors capabilities.
   *   Written by: Tom Hicks. 6/5/2017.
-  *   Last Modified: Cleanup tbd, demote from app.
+  *   Last Modified: Add and expose a coordinated shutdown method.
   */
 object ProcessorCoreServer extends LazyLogging {
 
@@ -38,8 +38,11 @@ object ProcessorCoreServer extends LazyLogging {
     _pcs
   }
 
-  /** Return an actor ref to the current instance of the router. */
+  /** Expose an actor ref to the current instance of the router. */
   def router: ActorRef = instance.router
+
+  /** Expose a shutdown mechanism for the current instance of the router. */
+  def shutdown: Unit = instance.shutdown
 }
 
 
@@ -125,8 +128,11 @@ class ProcessorCoreServer (
 
   logger.debug(s"(ProcessorCoreServer.ctor): procPool=${procPool}")
 
-  /** Returns an actor ref to the internal instance of the pooled router. */
+  /** Exposes an actor ref to the internal instance of the pooled router. */
   val router: ActorRef = procPool
+
+  /** Run a coordinated shutdown of the Akka system. */
+  def shutdown: Unit = CoordinatedShutdown(system).run
 
 
   private def getArgBoolean (argPath: String, defaultValue: Boolean): Boolean =
