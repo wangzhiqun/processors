@@ -86,9 +86,9 @@ class CluProcessor (val config: Config = ConfigFactory.load("cluprocessoropen"))
   // this class post-processes the NER labels to avoid some common tagging mistakes (used in bio)
   lazy val nerPostProcessor: Option[SentencePostProcessor] =
     getArgString(s"$prefix.ner.post.type", Some("none")) match {
-      case "bio" => Some(new BioNERPostProcessor(getArgString(s"$prefix.ner.post.type", None)))
+      case "bio" => Some(new BioNERPostProcessor(getArgString(s"$prefix.ner.post.stopListFile", None)))
       case "none" => None
-      case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.ner.post.type!")
+      case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.ner.post.stopListFile!")
     }
 
   // the dependency parser
