@@ -2,11 +2,11 @@ package org.clulab.sequences
 
 import java.io.BufferedReader
 
-import org.clulab.processors.Sentence
-import org.clulab.struct.{EntityValidator, HashTrie, TrueEntityValidator}
+import org.clulab.struct.HashTrie
 
 import scala.collection.mutable.ArrayBuffer
 import LexiconNER._
+import org.clulab.processors.Sentence
 import org.clulab.utils.Files.loadStreamFromClasspath
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -15,14 +15,16 @@ import scala.collection.mutable
 /**
   * Lexicon-based NER, which efficiently recognizes entities from large dictionaries
   * Note: This is a cleaned-up version of the old RuleNER.
-  * Create a LexiconNER object using LexiconNER.apply() (not the c'tor, which is private).
+  * Create a LexiconNER object using LexiconNER.apply() (NOT the c'tor, which is private).
   * Use it by calling the find() method on a single sentence.
   * See org.clulab.processors.TextLexiconNER for usage examples.
   *
   * @param matchers A map of tries to be matched for each given category label
   *                 The order of the matchers is important: it indicates priority during ties (first has higher priority)
   * @param knownCaseInsensitives Set of single-token entity names that can be spelled using lower case, according to the KB(s)
-  * @param useLemmas If true, tokens are matched using lemmas, otherwise using words
+  * @param useLemmasForMatching If true, tokens are matched using lemmas, otherwise using words
+  * @param caseInsensitiveMatching If true, tokens are matched case insensitively
+  * @param verifySingleTokenLowerCaseEntities If true, allow single-token, lower-case entities in case-insensitive matching only if seen as such in the KBs
   *
   * Author: mihais
   * Created: 5/11/15
@@ -31,8 +33,9 @@ import scala.collection.mutable
 class LexiconNER private (
   val matchers:Array[(String, HashTrie)],
   val knownCaseInsensitives:Set[String],
-  val useLemmas:Boolean,
-  val entityValidator: EntityValidator) {
+  val useLemmasForMatching:Boolean,
+  val caseInsensitiveMatching:Boolean,
+  val verifySingleTokenLowerCaseEntities:Boolean) {
 
   /**
     * Matches the lexicons against this sentence
@@ -45,7 +48,7 @@ class LexiconNER private (
   }
 
   protected def getTokens(sentence:Sentence):Array[String] = {
-    if (useLemmas) {
+    if (useLemmasForMatching) {
       sentence.lemmas.get
     } else {
       sentence.words
@@ -60,7 +63,6 @@ class LexiconNER private (
   protected def findLongestMatch(sentence:Sentence):Array[String] = {
     val tokens = getTokens(sentence)
     val caseInsensitiveWords = tokens.map(_.toLowerCase)
-    entityValidator.config(sentence, this)
 
     var offset = 0
     val labels = new ArrayBuffer[String]()
@@ -70,14 +72,14 @@ class LexiconNER private (
 
       // attempt to match each category at this offset
       for (i <- matchers.indices) {
-        spans(i) = findAt(tokens, caseInsensitiveWords, matchers(i)._2, offset, entityValidator)
+        spans(i) = findAt(tokens, caseInsensitiveWords, matchers(i)._2, offset)
         // if(spans(i) > 0) println(s"Offset $offset: Matched span ${spans(i)} for matcher ${matchers(i)._1}")
       }
 
       // pick the longest match
       // solve ties by preferring earlier (higher priority) matchers
-      var bestSpanOffset = -1
-      var bestSpan = -1
+      var bestSpanOffset: Int = -1
+      var bestSpan: Int = -1
       for(i <- matchers.indices) {
         if(spans(i) > bestSpan) {
           bestSpanOffset = i
@@ -86,7 +88,13 @@ class LexiconNER private (
       }
 
       // found something!
-      if(bestSpanOffset != -1) {
+      // if single-token span in case-insensitive matching, this is a known single-token, lower-case entity
+      if(bestSpanOffset != -1 &&
+        ( bestSpan > 1 ||
+          ! caseInsensitiveMatching ||
+          ! verifySingleTokenLowerCaseEntities ||
+          knownCaseInsensitives.contains(sentence.words(offset)))) {
+        
         assert(bestSpan > 0)
         val label = matchers(bestSpanOffset)._1
         //println(s"MATCHED LABEL $label from $offset to ${offset + bestSpan} (exclusive)!")
@@ -108,12 +116,11 @@ class LexiconNER private (
   protected def findAt(seq:Array[String],
                        caseInsensitiveSeq:Array[String],
                        matcher:HashTrie,
-                       offset:Int,
-                       validator:EntityValidator):Int = {
+                       offset:Int):Int = {
     val span = if (matcher.caseInsensitive) {
-      matcher.findAt(caseInsensitiveSeq, offset, Some(validator))
+      matcher.findAt(caseInsensitiveSeq, offset)
     } else {
-      matcher.findAt(seq, offset, Some(validator))
+      matcher.findAt(seq, offset)
     }
     span
   }
@@ -133,18 +140,18 @@ object LexiconNER {
     *
     * @param kbs KBs containing known entity names
     * @param overrideKBs KBs containing override labels for entity names from kbs (necessary for the bio domain)
-    * @param entityValidator Filter which decides if a matched entity is valid
     * @param lexicalVariationEngine Generates alternative spellings of an entity name (necessary for the bio domain)
     * @param useLemmasForMatching If true, we use Sentence.lemmas instead of Sentence.words during matching
     * @param caseInsensitiveMatching If true, tokens are matched case insensitively
+    * @param verifySingleTokenLowerCaseEntities If true, allow single-token, lower-case entities in case-insensitive matching only if seen as such in the KBs
     * @return The new LexiconNER
     */
   def apply(kbs:Seq[String],
             overrideKBs:Option[List[String]],
-            entityValidator: EntityValidator,
             lexicalVariationEngine:LexicalVariations,
             useLemmasForMatching:Boolean,
-            caseInsensitiveMatching:Boolean): LexiconNER = {
+            caseInsensitiveMatching:Boolean,
+            verifySingleTokenLowerCaseEntities:Boolean): LexiconNER = {
     logger.info("Beginning to load the KBs for the rule-based bio NER...")
     val matchers = new ArrayBuffer[(String, HashTrie)]
     val knownCaseInsensitives = new mutable.HashSet[String]()
@@ -176,7 +183,7 @@ object LexiconNER {
     }
 
     logger.info("KB loading completed.")
-    new LexiconNER(matchers.toArray, knownCaseInsensitives.toSet, useLemmasForMatching, entityValidator)
+    new LexiconNER(matchers.toArray, knownCaseInsensitives.toSet, useLemmasForMatching, caseInsensitiveMatching, verifySingleTokenLowerCaseEntities)
   }
 
   /**
@@ -186,18 +193,17 @@ object LexiconNER {
     * Each of the KBs must contain one entity name per line
     *   
     * @param kbs KBs containing known entity names
-    * @param entityValidator Filter which decides if a matched entity is valid
     * @param useLemmasForMatching If true, we use Sentence.lemmas instead of Sentence.words during matching
-    * @param caseInsensitiveMatching If true, tokens are matched case insensitively 
+    * @param caseInsensitiveMatching If true, tokens are matched case insensitively
+    * @param verifySingleTokenLowerCaseEntities If true, allow single-token, lower-case entities in case-insensitive matching only if seen as such in the KBs
     * @return The new LexiconNER
     */
   def apply(kbs:Seq[String],
-            entityValidator: EntityValidator = new TrueEntityValidator,
             useLemmasForMatching:Boolean = false,
-            caseInsensitiveMatching:Boolean = false): LexiconNER = {
-    apply(kbs, None,
-      entityValidator, new NoLexicalVariations,
-      useLemmasForMatching, caseInsensitiveMatching)
+            caseInsensitiveMatching:Boolean = false,
+            verifySingleTokenLowerCaseEntities:Boolean = true): LexiconNER = {
+    apply(kbs, None, new NoLexicalVariations,
+      useLemmasForMatching, caseInsensitiveMatching, verifySingleTokenLowerCaseEntities)
   }
 
   private def loadKB(

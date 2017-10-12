@@ -7,13 +7,12 @@ import org.clulab.processors.clu.tokenizer.{OpenDomainEnglishTokenizer, Tokenize
 import org.clulab.processors.{Document, Processor, Sentence}
 import org.clulab.struct.GraphMap
 import com.typesafe.config.{Config, ConfigFactory}
-import org.clulab.processors.clu.bio.{BioPOSPostProcessor, BioTokenizerPostProcessor, BioTokenizerPreProcessor, PostProcessorToken}
+import org.clulab.processors.clu.bio._
 import org.clulab.utils.Configured
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
 import CluProcessor._
 
 /**
@@ -59,13 +58,21 @@ class CluProcessor (val config: Config = ConfigFactory.load("cluprocessoropen"))
   lazy val posTagger: PartOfSpeechTagger =
     PartOfSpeechTagger.loadFromResource(getArgString(s"$prefix.pos.model", None))
 
-  // this class post-processes the POS tagger to avoid some common tagging mistakes for bio
+  // this class post-processes the POS tagger to avoid some common tagging mistakes (used in bio)
   lazy val posPostProcessor: Option[SentencePostProcessor] =
     getArgString(s"$prefix.pos.post.type", Some("none")) match {
       case "bio" => Some(new BioPOSPostProcessor())
       case "none" => None
       case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.pos.post.type!")
-    }   
+    }
+
+  // this class post-processes the NER labels to avoid some common tagging mistakes (used in bio)
+  lazy val nerPostProcessor: Option[SentencePostProcessor] =
+    getArgString(s"$prefix.ner.post.type", Some("none")) match {
+      case "bio" => Some(new BioNERPostProcessor(getArgString(s"$prefix.ner.post.type", None)))
+      case "none" => None
+      case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.ner.post.type!")
+    }
 
   // the dependency parser
   lazy val depParser: Parser =

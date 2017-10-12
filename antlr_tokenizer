@@ -1,7 +1,8 @@
 #!/bin/bash
 
 #
-# antlr4 is simply a script that contains this: 
+# Generates the Java code from .g file for the open-domain tokenizer in CluProcessor
+# Note: antlr4 is simply a script that contains this: 
 #  java -jar <full path to your antlr-4.x-complete.jar file>
 #
 

@@ -3,7 +3,7 @@ package org.clulab.processors.bionlp.ner
 import scala.collection.mutable
 import com.typesafe.config._
 import ai.lum.common.ConfigUtils._
-import org.clulab.processors.clu.bio.{BioLexicalVariations, BioLexiconEntityValidator}
+import org.clulab.processors.clu.bio.BioLexicalVariations
 import org.clulab.sequences.LexiconNER
 import org.clulab.utils.Files._
 import org.slf4j.LoggerFactory
