@@ -10,7 +10,6 @@ import edu.stanford.nlp.ling.CoreLabel
 import edu.stanford.nlp.util.CoreMap
 import edu.stanford.nlp.pipeline.Annotation
 import org.clulab.sequences.LexiconNER
-import org.clulab.struct.MutableNumber
 
 import scala.collection.JavaConversions._
 
@@ -87,9 +86,6 @@ class HybridNER(withCRFNER:Boolean, withRuleNER:Boolean) {
         if(verboseMerge)
           println(s"""ENTITIES AFTER MERGING: ${ourSentence.entities.get.mkString(" ")}""")
 
-        // post-processing
-        postProcessNamedEntities(ourSentence)
-
         // TODO: we should have s.norms as well...
 
         sentenceOffset += 1
@@ -151,7 +147,4 @@ class HybridNER(withCRFNER:Boolean, withRuleNER:Boolean) {
 
 object HybridNER {
   private val CRF_MODEL_PATH = "org/clulab/processors/bionlp/ner/bioner.dat"
-
-  private val POTENTIAL_FIGURE_NUMBER = Pattern.compile("[a-z]*\\d+", Pattern.CASE_INSENSITIVE)
-  private val POTENTIAL_FIGURE_TEXT = Pattern.compile("(figure|figures|fig\\.?|figs\\.?)", Pattern.CASE_INSENSITIVE)
 }

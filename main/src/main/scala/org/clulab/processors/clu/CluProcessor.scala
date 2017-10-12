@@ -13,6 +13,8 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import org.clulab.sequences.{LexiconNER, Tagger}
+
 import CluProcessor._
 
 /**
@@ -64,6 +66,21 @@ class CluProcessor (val config: Config = ConfigFactory.load("cluprocessoropen"))
       case "bio" => Some(new BioPOSPostProcessor())
       case "none" => None
       case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.pos.post.type!")
+    }
+
+  // the NER tagger
+  lazy val ner: Option[Tagger[String]] =
+    getArgString(s"$prefix.ner.type", Some("none")) match {
+      case "bio" => Some(LexiconNER(
+        getArgStrings(s"$prefix.ner.kbs", None),
+        Some(getArgStrings(s"$prefix.ner.overrides", None)),
+        new BioLexicalVariations,
+        useLemmasForMatching = false,
+        caseInsensitiveMatching = true,
+        verifySingleTokenLowerCaseEntities = true
+      ))
+      case "none" => None
+      case _ => throw new RuntimeException(s"ERROR: Unknown argument value for $prefix.ner.type!")
     }
 
   // this class post-processes the NER labels to avoid some common tagging mistakes (used in bio)
@@ -233,7 +250,17 @@ class CluProcessor (val config: Config = ConfigFactory.load("cluprocessoropen"))
 
   /** NER; modifies the document in place */
   def recognizeNamedEntities(doc:Document) {
-    // TODO
+    if(ner.nonEmpty) {
+      basicSanityCheck(doc)
+      for (sentence <- doc.sentences) {
+        val labels = ner.get.find(sentence)
+        sentence.entities = Some(labels)
+
+        if(nerPostProcessor.nonEmpty) {
+          nerPostProcessor.get.process(sentence)
+        }
+      }
+    }
   }
 
   /** Syntactic parsing; modifies the document in place */

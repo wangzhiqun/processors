@@ -35,7 +35,7 @@ class LexiconNER private (
   val knownCaseInsensitives:Set[String],
   val useLemmasForMatching:Boolean,
   val caseInsensitiveMatching:Boolean,
-  val verifySingleTokenLowerCaseEntities:Boolean) {
+  val verifySingleTokenLowerCaseEntities:Boolean) extends Tagger[String] {
 
   /**
     * Matches the lexicons against this sentence
@@ -147,7 +147,7 @@ object LexiconNER {
     * @return The new LexiconNER
     */
   def apply(kbs:Seq[String],
-            overrideKBs:Option[List[String]],
+            overrideKBs:Option[Seq[String]],
             lexicalVariationEngine:LexicalVariations,
             useLemmasForMatching:Boolean,
             caseInsensitiveMatching:Boolean,
@@ -201,7 +201,7 @@ object LexiconNER {
   def apply(kbs:Seq[String],
             useLemmasForMatching:Boolean = false,
             caseInsensitiveMatching:Boolean = false,
-            verifySingleTokenLowerCaseEntities:Boolean = true): LexiconNER = {
+            verifySingleTokenLowerCaseEntities:Boolean = false): LexiconNER = {
     apply(kbs, None, new NoLexicalVariations,
       useLemmasForMatching, caseInsensitiveMatching, verifySingleTokenLowerCaseEntities)
   }
