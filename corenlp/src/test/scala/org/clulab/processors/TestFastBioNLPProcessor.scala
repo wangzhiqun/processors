@@ -36,7 +36,6 @@ class TestFastBioNLPProcessor extends FlatSpec with Matchers {
 
   }
 
-  /*   // TODO
   it should "recognize correct NEs in text 2" in {
     val doc = proc.mkDocument(
       "Identification of complex formation between two intracellular tyrosine kinase substrates: human c-Rel and the p105 precursor of p50 NF-kappa B. " +
@@ -127,7 +126,6 @@ class TestFastBioNLPProcessor extends FlatSpec with Matchers {
     cdeps.hasEdge(1, 0, "nsubj") should be (true)
     cdeps.hasEdge(1, 2, "dobj") should be (true)
   }
-  */
 
   def annotate(doc:Document) {
     proc.annotate(doc)

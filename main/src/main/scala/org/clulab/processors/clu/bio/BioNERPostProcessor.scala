@@ -56,10 +56,11 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
         val end = findEntityEnd(i, seq)
         if(! validMatch(sent, i, end)) {
           for(j <- i until end) {
+            // if no bueno, reset the entire span labels to O
             seq(j) = LexiconNER.OUTSIDE_LABEL
           }
-          i = end
         }
+        i = end
       } else {
         i += 1
       }
