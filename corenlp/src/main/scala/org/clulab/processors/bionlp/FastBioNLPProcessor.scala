@@ -63,8 +63,10 @@ class FastBioNLPProcessor (internStrings:Boolean = false,
   override def recognizeNamedEntities(doc:Document) {
     hybridNER.recognizeNamedEntities(doc, namedEntitySanityCheck(doc))
 
+    /*     // TODO
     for(sentence <- doc.sentences) {
       nerPostProcessor.process(sentence)
     }
+    */
   }
 }
