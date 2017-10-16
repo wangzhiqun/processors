@@ -58,8 +58,8 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
           for(j <- i until end) {
             seq(j) = LexiconNER.OUTSIDE_LABEL
           }
-          i = end
         }
+        i = end
       } else {
         i += 1
       }

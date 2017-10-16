@@ -52,12 +52,12 @@ class TestFastBioNLPProcessor extends FlatSpec with Matchers {
 
     annotate(doc)
 
-    /*
+
     val s = doc.sentences(0)
     for(i <- 0 until s.size) {
       println(s"${s.words(i)} ${s.tags.get(i)} ${s.lemmas.get(i)} ${s.entities.get(i)}")
     }
-    */
+
 
     var i = 0
     for(s <- doc.sentences) {
