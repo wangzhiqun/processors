@@ -13,7 +13,33 @@ import org.clulab.struct.DirectedGraphEdgeIterator
 class TestFastBioNLPProcessor extends FlatSpec with Matchers {
   var proc:Processor = new FastBioNLPProcessor
 
-  "FastBioNLPProcessor" should "recognize correct NEs in text 1" in {
+  "FastBioNLPProcessor" should "recognize correct NEs in text 0" in {
+    val doc = proc.mkDocument(
+      "Identification of complex formation between two intracellular tyrosine kinase substrates: human c-Rel and the p105 precursor of p50 NF-kappa B. ", keepText = false)
+
+    annotate(doc)
+
+    /*
+    val s = doc.sentences(0)
+    for(i <- 0 until s.size) {
+      println(s"${s.words(i)} ${s.tags.get(i)} ${s.lemmas.get(i)} ${s.entities.get(i)}")
+    }
+    */
+
+    var i = 0
+    for(s <- doc.sentences) {
+      println(s"Labels for sentence #$i: " + s.entities.get.mkString(" "))
+      i += 1
+    }
+
+    doc.sentences(0).entities.get(7) should be ("B-Site")
+    doc.sentences(0).entities.get(11) should be ("B-Species")
+    doc.sentences(0).entities.get(12) should be ("B-Gene_or_gene_product")
+    doc.sentences(1).entities.get(1) should be ("B-Gene_or_gene_product")
+  }
+
+  /*
+  it should "recognize correct NEs in text 1" in {
     val doc = proc.mkDocumentFromSentences(List(
       "Co-immunoprecipitation analysis confirmed that Bis interacted with Bcl-2 in vivo.",
       "The Ras protein is phosphorylated by TBRI."), keepText = false)
@@ -126,6 +152,7 @@ class TestFastBioNLPProcessor extends FlatSpec with Matchers {
     cdeps.hasEdge(1, 0, "nsubj") should be (true)
     cdeps.hasEdge(1, 2, "dobj") should be (true)
   }
+  */
 
   def annotate(doc:Document) {
     proc.annotate(doc)
