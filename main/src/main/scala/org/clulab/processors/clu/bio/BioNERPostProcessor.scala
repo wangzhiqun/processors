@@ -120,10 +120,12 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
       }
     }
 
+    // TODO: the next two statements repeat from LexiconNER.validEntitySpan(). Can we avoid this repetition?
+
     //
     // the text must contain at least one letter AND (the letter must be upper case OR the text contains at least 1 digit)
     //
-    val (characters, letters, digits, upperCaseLetters, spaces) = scanText(words, start, end)
+    val (characters, letters, digits, upperCaseLetters, spaces) = LexiconNER.scanText(words, start, end)
     if(letters > 0 && (digits > 0 || upperCaseLetters > 0 || spaces > 0)) {
       //println("Found valid match: " + text)
       return true
@@ -132,29 +134,10 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     //
     // if at least 1 letter and length > 3 accept (e.g., "rapamycin")
     //
-    if(letters > 0 && characters > 3)
+    if(letters > 0 && characters > LexiconNER.KNOWN_CASE_INSENSITIVE_LENGTH)
       return true
 
     false
-  }
-
-  private def scanText(words:Array[String], start:Int, end:Int):(Int, Int, Int, Int, Int) = {
-    var letters = 0
-    var digits = 0
-    var upperCaseLetters = 0
-    var characters = 0
-    val spaces = words.length - 1
-    for(offset <- start until end) {
-      val word = words(offset)
-      for (i <- word.indices) {
-        val c = word.charAt(i)
-        characters += 1
-        if (Character.isLetter(c)) letters += 1
-        if (Character.isUpperCase(c)) upperCaseLetters += 1
-        if (Character.isDigit(c)) digits += 1
-      }
-    }
-    (characters, letters, digits, upperCaseLetters, spaces)
   }
 
   private def isLowerCase(s:String):Boolean = {

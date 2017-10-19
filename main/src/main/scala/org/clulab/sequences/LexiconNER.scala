@@ -89,12 +89,7 @@ class LexiconNER private (
 
       // found something!
       // if single-token span in case-insensitive matching, this is a known single-token, lower-case entity
-      if(bestSpanOffset != -1 &&
-        ( bestSpan > 1 ||
-          ! caseInsensitiveMatching ||
-          ! verifySingleTokenLowerCaseEntities ||
-          knownCaseInsensitives.contains(sentence.words(offset)))) {
-        
+      if(bestSpanOffset != -1 && validEntitySpan(sentence, offset, bestSpan)) {
         assert(bestSpan > 0)
         val label = matchers(bestSpanOffset)._1
         //println(s"MATCHED LABEL $label from $offset to ${offset + bestSpan} (exclusive)!")
@@ -111,6 +106,39 @@ class LexiconNER private (
     }
 
     labels.toArray
+  }
+
+  /**
+    * Aims to detect spurious matches, especially when matching in case insensitive mode
+    * @param sentence Current sentence
+    * @param start Entity start
+    * @param length Entity length
+    * @return True, if this span looks like a valid entity
+    */
+  protected def validEntitySpan(sentence: Sentence, start:Int, length:Int):Boolean = {
+    if(! verifySingleTokenLowerCaseEntities) return true
+    if(! caseInsensitiveMatching) return true
+
+    val (characters, letters, digits, upperCaseLetters, spaces) =
+      LexiconNER.scanText(sentence.words, start, start + length)
+
+    // the text must contain at least one letter AND
+    // (the letter must be upper case OR the text contains at least 1 digit OR multi-word entity)
+    if(letters > 0 && (digits > 0 || upperCaseLetters > 0 || spaces > 0)) {
+      return true
+    }
+
+    // if at least 1 letter and length > 3 accept (e.g., "rapamycin")
+    if(letters > 0 && characters > KNOWN_CASE_INSENSITIVE_LENGTH) {
+      return true
+    }     
+
+    // try to capture stop words here: lower case words that are NOT in the list of known tokens in lower case
+    if(letters == 0 || (spaces == 0 && ! knownCaseInsensitives.contains(sentence.words(start)))) {
+      return false
+    }
+
+    true
   }
 
   protected def findAt(seq:Array[String],
@@ -131,6 +159,7 @@ object LexiconNER {
   val logger: Logger = LoggerFactory.getLogger(classOf[LexiconNER])
   val OUTSIDE_LABEL: String = "O"
   val INTERN_STRINGS:Boolean = false
+  val KNOWN_CASE_INSENSITIVE_LENGTH:Int = 3 // this was tuned for Reach; if changed please rerun Reach unit tests
 
   /**
     * Creates a LexiconNER from a list of KBs
@@ -237,7 +266,9 @@ object LexiconNER {
       addWithLexicalVariations(tokens, lexicalVariationEngine, matcher)
 
       // keep track of all lower case ents that are single token (necessary for case-insensitive matching)
-      if(tokens.length == 1 && line.toLowerCase == line && caseInsensitive) { 
+      if(caseInsensitive &&
+         tokens.length == 1 && line.toLowerCase == line &&
+         tokens(0).length <= KNOWN_CASE_INSENSITIVE_LENGTH) {
         knownCaseInsensitives.add(line)
       }
     }
@@ -347,6 +378,25 @@ object LexiconNER {
       position += 1
     }
     false
+  }
+
+  def scanText(words:Array[String], start:Int, end:Int):(Int, Int, Int, Int, Int) = {
+    var letters = 0
+    var digits = 0
+    var upperCaseLetters = 0
+    var characters = 0
+    val spaces = words.length - 1
+    for(offset <- start until end) {
+      val word = words(offset)
+      for (i <- word.indices) {
+        val c = word.charAt(i)
+        characters += 1
+        if (Character.isLetter(c)) letters += 1
+        if (Character.isUpperCase(c)) upperCaseLetters += 1
+        if (Character.isDigit(c)) digits += 1
+      }
+    }
+    (characters, letters, digits, upperCaseLetters, spaces)
   }
 }
 

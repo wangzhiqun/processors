@@ -25,7 +25,7 @@ class HybridNER(withCRFNER:Boolean, withRuleNER:Boolean) {
   /** Runs the NER, and stores the output in place, in the .entities field in the sentences in the given Document */
   def recognizeNamedEntities(doc:Document, annotation:Option[Annotation]) {
     if(annotation.isEmpty) return
-    val verboseMerge = true
+    val verboseMerge = false
 
     if(withRuleNER) {
       // run the rule-based NER on one sentence at a time
