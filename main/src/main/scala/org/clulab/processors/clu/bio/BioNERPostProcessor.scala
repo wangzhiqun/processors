@@ -71,6 +71,12 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     assert(end > start)
     val words = sentence.words
     val lemmas = sentence.lemmas.get
+    var verbose = true
+
+    if(verbose) {
+      println(s"validMatch for span [$start, $end) with label ${sentence.entities.get(start)}")
+      println(s"Tags: ${sentence.tags.get.mkString(", ")}")
+    }
 
     //
     // must contain at least one NN*
@@ -79,8 +85,10 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     for(i <- start until end)
       if(sentence.tags.get(i).startsWith("NN"))
         nouns += 1
-    if(nouns == 0)
+    if(nouns == 0) {
+      if(verbose) println("\tFailed noun test")
       return false
+    }
 
     //
     // some entities end with -ing verbs (e.g., "binding")
@@ -90,6 +98,7 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
       val last = words(end - 1)
       val to = words(end)
       if(last.length > 3 && last.toLowerCase.endsWith("ing") && to.toLowerCase == "to") {
+        if(verbose) println("\tFailed -ing to test")
         return false
       }
     }
@@ -100,6 +109,7 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     if(end - start == 1 &&
        (isLowerCase(words(start)) || isUpperInitial(words(start))) &&
        stopWords.contains(words(start).toLowerCase)) {
+      if(verbose) println("\tFailed stop-word test")
       return false
     }
 
@@ -107,8 +117,10 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     // XML tag leftovers should not be labeled
     //
     for(i <- start until end) {
-      if(words(i).startsWith("XREF_"))
+      if(words(i).startsWith("XREF_")) {
+        if(verbose) println("\tFailed XREF test")
         return false
+      }
     }
 
     //
@@ -116,6 +128,7 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     //
     for(i <- start until end) {
       if(i > 0 && isFigRef(lemmas, i)) {
+        if(verbose) println("\tFailed figure reference test")
         return false
       }
     }
@@ -127,16 +140,19 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     //
     val (characters, letters, digits, upperCaseLetters, spaces) = LexiconNER.scanText(words, start, end)
     if(letters > 0 && (digits > 0 || upperCaseLetters > 0 || spaces > 0)) {
-      //println("Found valid match: " + text)
+      if(verbose) println("\tPassed scanText test 1")
       return true
     }
 
     //
     // if at least 1 letter and length > 3 accept (e.g., "rapamycin")
     //
-    if(letters > 0 && characters > LexiconNER.KNOWN_CASE_INSENSITIVE_LENGTH)
+    if(letters > 0 && characters > LexiconNER.KNOWN_CASE_INSENSITIVE_LENGTH) {
+      if(verbose) println("\tPassed scanText test 2")
       return true
+    }
 
+    if(verbose) println("\tFailed validMatch default")
     false
   }
 
