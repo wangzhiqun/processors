@@ -21,12 +21,14 @@ class TestBioNLPProcessor extends FlatSpec with Matchers {
     es(5) should be ("B-Gene_or_gene_product")
 
     doc = proc.mkDocument("XRCC1 stimulates DNA-PK enzymatic activity")
+    annotate(doc)
+
+    es = doc.sentences(0).entities.get
     println(s"Tricky entities: ${es.mkString(", ")}")
     es(0) should be ("B-Gene_or_gene_product")
     es(2) should be ("B-Gene_or_gene_product")
   }
 
-  /*
   "BioNLPProcessor" should "recognize correct NEs in text 1" in {
     val doc = proc.mkDocumentFromSentences(List(
       "Co-immunoprecipitation analysis confirmed that Bis interacted with Bcl-2 in vivo.",
@@ -350,7 +352,6 @@ class TestBioNLPProcessor extends FlatSpec with Matchers {
 
     es(10) should be ("O")
   }
-  */
 
   def annotate(doc:Document) {
     proc.tagPartsOfSpeech(doc)

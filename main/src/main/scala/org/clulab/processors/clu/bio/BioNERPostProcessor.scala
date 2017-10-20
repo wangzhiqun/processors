@@ -71,7 +71,7 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     assert(end > start)
     val words = sentence.words
     val lemmas = sentence.lemmas.get
-    var verbose = true
+    var verbose = false
 
     if(verbose) {
       println(s"validMatch for span [$start, $end) with label ${sentence.entities.get(start)}")
@@ -79,13 +79,17 @@ class BioNERPostProcessor(val stopWordFile:String) extends SentencePostProcessor
     }
 
     //
-    // must contain at least one NN*
+    // must contain at least one NN* or JJ* (e.g., "neurofibromin" is tagged as JJ)
     //
     var nouns = 0
-    for(i <- start until end)
-      if(sentence.tags.get(i).startsWith("NN"))
+    var adjectives = 0
+    for(i <- start until end) {
+      if (sentence.tags.get(i).startsWith("NN"))
         nouns += 1
-    if(nouns == 0) {
+      else if(sentence.tags.get(i).startsWith("JJ"))
+        adjectives += 1
+    }
+    if(nouns == 0 && adjectives == 0) {
       if(verbose) println("\tFailed noun test")
       return false
     }
